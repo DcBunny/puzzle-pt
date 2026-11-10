@@ -55,8 +55,9 @@ fun LessonScreen(
     onProgressChanged: () -> Unit,
 ) {
     val steps = remember(type) { LessonRepository.stepsFor(type) }
+    val examplePuzzle = remember(type) { LessonRepository.examplePuzzle(type) }
     val guidedPuzzle = remember(type) { LessonRepository.guidedPuzzle(type) }
-    val targetIndex = remember(guidedPuzzle) { guidedPuzzle.givens.indexOf(0) }
+    val targetIndex = remember(guidedPuzzle) { LessonRepository.guidedTargetIndex(type) }
     val alreadyComplete = remember(type) { store.isLessonComplete(type) }
     val speaker = rememberChineseSpeaker()
     var stepIndex by remember(type) { mutableIntStateOf(0) }
@@ -189,6 +190,7 @@ fun LessonScreen(
             } else {
                 LessonVisual(
                     step = step,
+                    puzzle = examplePuzzle,
                     replayKey = replayKey,
                     onSolved = { completedSteps = completedSteps + stepIndex },
                 )
@@ -252,17 +254,9 @@ private fun childFriendlyHint(
     targetIndex: Int,
     value: Int,
 ): String = when (type) {
-    SudokuType.STANDARD -> "这个小队里已经有 $value 了，看看还缺哪个数字。"
-    SudokuType.KILLER -> "这样合起来就不是屋角的数了，换一张数字牌试试。"
-    SudokuType.SKYSCRAPER -> "这样看到的楼数会和外面的线索不一样，再想一想。"
-    SudokuType.DIAGONAL -> {
-        val row = targetIndex / 6
-        val column = targetIndex % 6
-        if (row == column || row + column == 5) {
-            "彩色滑梯上已经有 $value 了，换一个数字吧。"
-        } else {
-            "这个小队里已经有 $value 了，再看看缺少谁。"
-        }
-    }
-    SudokuType.ANTI_KNIGHT -> "小马跳到的格子里不能有一样的数字，换一张牌试试。"
+    SudokuType.STANDARD -> "行、列和宫里都不能有重复数字，看看还缺哪个数字。"
+    SudokuType.KILLER -> "看看虚线笼：数字不能重复，合起来要等于笼角的数。"
+    SudokuType.SKYSCRAPER -> "从箭头方向数一数，看到的楼数要和外面的线索一样。"
+    SudokuType.DIAGONAL -> "除了行、列和宫，也检查对角线上有没有重复的 $value。"
+    SudokuType.ANTI_KNIGHT -> "看看马步落点，走两格再拐一格的两格不能填相同数字。"
 }

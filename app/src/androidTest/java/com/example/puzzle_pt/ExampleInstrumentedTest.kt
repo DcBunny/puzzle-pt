@@ -3,6 +3,7 @@ package com.example.puzzle_pt
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -33,13 +34,18 @@ class ExampleInstrumentedTest {
     }
 
     @Test
-    fun homeOffersTeachingAndPracticeForAllFiveTypes() {
+    fun homeOffersVariantTeachingAndPracticeForAllTypes() {
         composeRule.onNodeWithText("六宫数独学院").assertIsDisplayed()
+        composeRule.onNodeWithText("已完成 0/4 课  ·  0/15 题").performScrollTo().assertIsDisplayed()
         SudokuType.entries.forEach { type ->
-            scrollHomeTo("lesson_${type.name}")
-            composeRule.onNodeWithTag("lesson_${type.name}").assertIsDisplayed()
             scrollHomeTo("practice_${type.name}")
             composeRule.onNodeWithTag("practice_${type.name}").assertIsDisplayed()
+            if (type == SudokuType.STANDARD) {
+                composeRule.onNodeWithTag("lesson_${type.name}").assertDoesNotExist()
+            } else {
+                scrollHomeTo("lesson_${type.name}")
+                composeRule.onNodeWithTag("lesson_${type.name}").assertIsDisplayed()
+            }
         }
     }
 
@@ -57,19 +63,19 @@ class ExampleInstrumentedTest {
 
     @Test
     fun everyVariantLessonIncludesChildFriendlyInteraction() {
-        SudokuType.entries.forEach { type ->
+        SudokuType.entries.filter { it != SudokuType.STANDARD }.forEach { type ->
             scrollHomeTo("lesson_${type.name}")
             click("lesson_${type.name}")
             composeRule.onNodeWithTag("listen_button").assertIsDisplayed()
             when (type) {
-                SudokuType.STANDARD -> completeStandardLesson()
+                SudokuType.STANDARD -> error("标准数独没有教学")
                 SudokuType.KILLER -> completeKillerLesson()
                 SudokuType.SKYSCRAPER -> completeSkyscraperLesson()
                 SudokuType.DIAGONAL -> completeDiagonalLesson()
                 SudokuType.ANTI_KNIGHT -> completeKnightLesson()
             }
             val guidedPuzzle = LessonRepository.guidedPuzzle(type)
-            val target = guidedPuzzle.givens.indexOf(0)
+            val target = LessonRepository.guidedTargetIndex(type)
             val answer = guidedPuzzle.solution[target]
             click("cell_$target")
             click("lesson_number_${answer % 6 + 1}")
@@ -110,63 +116,48 @@ class ExampleInstrumentedTest {
         composeRule.onNodeWithText("恭喜完成！").assertIsDisplayed()
     }
 
-    private fun completeStandardLesson() {
-        click("lesson_next")
-        click("lesson_next")
-        click("visual_standard_duplicate_0")
-        click("visual_standard_duplicate_1")
-        click("lesson_next")
-        click("visual_standard_missing_1")
-        click("visual_standard_missing_4")
-        click("lesson_next")
-    }
-
     private fun completeKillerLesson() {
-        click("lesson_next")
-        click("lesson_next")
-        click("visual_killer_number_4")
-        click("visual_killer_number_4")
-        click("visual_killer_number_1")
-        click("visual_killer_number_2")
-        click("visual_killer_number_3")
-        click("lesson_next")
-        click("visual_killer_duplicate_0")
-        click("visual_killer_duplicate_1")
+        composeRule.onNodeWithTag("cell_0").assertTextEquals("1", "10")
+        composeRule.onNodeWithTag("cell_1").assertTextEquals("4")
+        click("visual_killer_number_6")
+        click("visual_killer_number_5")
+        composeRule.onNodeWithTag("cell_2").assertTextEquals("5")
         click("lesson_next")
     }
 
     private fun completeSkyscraperLesson() {
+        click("visual_sky_height_answer_2")
+        click("visual_sky_height_answer_3")
         click("lesson_next")
-        click("lesson_next")
-        click("visual_sky_left")
+        composeRule.onNodeWithTag("cell_0").assertTextEquals("2")
+        composeRule.onNodeWithTag("cell_1").assertTextEquals("5")
+        composeRule.onNodeWithTag("cell_5").assertTextEquals("6")
         click("visual_sky_answer_2")
-        click("visual_sky_answer_3")
-        click("lesson_next")
+        click("visual_sky_answer_6")
+        composeRule.onNodeWithTag("lesson_next").performScrollTo().assertIsNotEnabled()
+        click("visual_sky_answer_1")
+        click("visual_sky_answer_5")
+        click("visual_sky_answer_1")
         click("lesson_next")
     }
 
     private fun completeDiagonalLesson() {
-        click("lesson_next")
-        click("lesson_next")
-        click("visual_diagonal_cell_0_1")
-        for (index in 0..5) click("visual_diagonal_cell_${index}_$index")
-        click("lesson_next")
-        click("visual_diagonal_duplicate_0_5")
-        click("visual_diagonal_duplicate_2_3")
+        composeRule.onNodeWithTag("cell_0").assertTextEquals("5")
+        composeRule.onNodeWithTag("cell_7").assertTextEquals("1")
+        composeRule.onNodeWithTag("cell_28").assertTextEquals("6")
+        click("visual_diagonal_number_5")
+        click("visual_diagonal_number_4")
+        composeRule.onNodeWithTag("cell_21").assertTextEquals("4")
         click("lesson_next")
     }
 
     private fun completeKnightLesson() {
-        click("lesson_next")
-        click("visual_knight_cell_1_0")
-        click("visual_knight_cell_0_3")
-        click("visual_knight_cell_2_3")
-        click("visual_knight_cell_3_0")
-        click("visual_knight_cell_3_2")
-        click("lesson_next")
-        click("lesson_next")
+        composeRule.onNodeWithTag("cell_14").assertTextEquals("2")
         click("visual_knight_safe_2")
-        click("visual_knight_safe_1")
+        composeRule.onNodeWithTag("cell_1").assertTextEquals("2")
+        composeRule.onNodeWithTag("visual_feedback").assertTextEquals("第 3 行第 3 列的 2 和这里是马步关系，所以这里不能填 2。")
+        click("visual_knight_safe_4")
+        composeRule.onNodeWithTag("cell_1").assertTextEquals("4")
         click("lesson_next")
     }
 

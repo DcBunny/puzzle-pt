@@ -46,10 +46,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.puzzle_pt.data.LessonStep
 import com.example.puzzle_pt.data.LessonVisualKind
+import com.example.puzzle_pt.engine.SudokuRules
+import com.example.puzzle_pt.model.CELL_COUNT
+import com.example.puzzle_pt.model.SudokuPuzzle
 
 @Composable
 fun LessonVisual(
     step: LessonStep,
+    puzzle: SudokuPuzzle,
     replayKey: Int,
     onSolved: () -> Unit,
 ) {
@@ -74,20 +78,20 @@ fun LessonVisual(
                     LessonVisualKind.STANDARD_MISSING -> StandardMissing(onSolved)
                     LessonVisualKind.KILLER_HOUSE -> KillerHouseDemo(reveal.value, false)
                     LessonVisualKind.KILLER_ADD -> KillerAddition(reveal.value)
-                    LessonVisualKind.KILLER_MAKE_SUM -> KillerMakeSum(onSolved)
+                    LessonVisualKind.KILLER_MAKE_SUM -> KillerMakeSum(puzzle, onSolved)
                     LessonVisualKind.KILLER_DUPLICATE -> KillerDuplicate(onSolved)
-                    LessonVisualKind.SKY_HEIGHTS -> BuildingRow(List(6) { it + 1 }, reveal = reveal.value)
+                    LessonVisualKind.SKY_HEIGHTS -> SkyBuildingQuiz(onSolved)
                     LessonVisualKind.SKY_COUNT -> SkyCountDemo(reveal.value)
-                    LessonVisualKind.SKY_QUIZ -> SkyQuiz(onSolved)
+                    LessonVisualKind.SKY_QUIZ -> SkyQuiz(puzzle, onSolved)
                     LessonVisualKind.SKY_SIX_FIRST -> SkySixFirst(reveal.value)
                     LessonVisualKind.DIAGONAL_LINES -> DiagonalDemo(reveal.value, showNumbers = false)
                     LessonVisualKind.DIAGONAL_NUMBERS -> DiagonalDemo(reveal.value, showNumbers = true)
                     LessonVisualKind.DIAGONAL_TRACE -> DiagonalTrace(onSolved)
-                    LessonVisualKind.DIAGONAL_DUPLICATE -> DiagonalDuplicate(onSolved)
+                    LessonVisualKind.DIAGONAL_DUPLICATE -> DiagonalDuplicate(puzzle, onSolved)
                     LessonVisualKind.KNIGHT_MOVE -> KnightMoveDemo(reveal.value)
                     LessonVisualKind.KNIGHT_FIND_MOVES -> KnightFindMoves(onSolved)
                     LessonVisualKind.KNIGHT_SAME -> KnightSameDemo()
-                    LessonVisualKind.KNIGHT_CHOOSE_SAFE -> KnightChooseSafe(onSolved)
+                    LessonVisualKind.KNIGHT_CHOOSE_SAFE -> KnightChooseSafe(puzzle, onSolved)
                 }
             }
         }
@@ -251,36 +255,23 @@ private fun KillerAddition(reveal: Float) {
 }
 
 @Composable
-private fun KillerMakeSum(onSolved: () -> Unit) {
-    var selected by remember { mutableStateOf(setOf<Int>()) }
-    var message by remember { mutableStateOf("点数字牌，再点一次可以拿回来") }
-    val solved = selected == setOf(1, 2, 3)
-    Text("屋角数字：6", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Text(
-        "小屋里现在：${selected.sorted().joinToString(" + ").ifEmpty { "空空的" }}",
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(vertical = 12.dp),
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        for (value in 1..4) {
-            NumberBadge(
-                value = value,
-                color = if (value in selected) MaterialTheme.colorScheme.tertiaryContainer
-                else MaterialTheme.colorScheme.secondaryContainer,
-                tag = "visual_killer_number_$value",
-                onClick = {
-                    selected = if (value in selected) selected - value else selected + value
-                    val sum = selected.sum()
-                    when {
-                        selected == setOf(1, 2, 3) -> {
-                            message = "正好！1 + 2 + 3 = 6。"
-                            onSolved()
-                        }
-                        sum > 6 -> message = "现在超过 6 啦，点掉一张数字牌试试。"
-                        else -> message = "现在合起来是 $sum，还没到 6。"
-                    }
-                },
-            )
+private fun KillerMakeSum(puzzle: SudokuPuzzle, onSolved: () -> Unit) {
+    val target = 2
+    val cageCells = puzzle.cages.first().cells.map { it.index }.toSet()
+    var entry by remember { mutableStateOf<Int?>(null) }
+    var message by remember { mutableStateOf("第一行小屋：1 + 4 + ? = 10") }
+    val solved = entry == puzzle.solution[target]
+    val board = puzzle.solution.mapIndexed { index, value -> if (index == target) entry ?: 0 else value }
+    SixGridLessonBoard(puzzle, board, highlightCells = cageCells, hintIndex = target)
+    LessonNumberChoices("visual_killer_number") { value ->
+        entry = value
+        when (value) {
+            puzzle.solution[target] -> {
+                message = "对了！1 + 4 + 5 = 10，小屋里也没有重复数字。"
+                onSolved()
+            }
+            1, 4 -> message = "小屋里已经有 $value 了，数字不能重复。"
+            else -> message = "10 减去 1 和 4 等于 5，再算一算。"
         }
     }
     InteractionMessage(message, solved)
@@ -342,6 +333,28 @@ private fun BuildingRow(
 }
 
 @Composable
+private fun SkyBuildingQuiz(onSolved: () -> Unit) {
+    var answer by remember { mutableStateOf<Int?>(null) }
+    var message by remember { mutableStateOf("从左边看，只数比前面都高的楼。") }
+    val solved = answer == 3
+    Text("从左边看  →", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+    BuildingRow(
+        heights = listOf(2, 3, 1, 4),
+        visible = setOf(0, 1, 3),
+    )
+    LessonNumberChoices("visual_sky_height_answer") { value ->
+        answer = value
+        if (value == 3) {
+            message = "数对了！2 楼、3 楼和 4 楼能被看到，1 楼被挡住了。"
+            onSolved()
+        } else {
+            message = "2 楼先看到，后面更高的 3 楼和 4 楼也能看到。"
+        }
+    }
+    InteractionMessage(message, solved)
+}
+
+@Composable
 private fun SkyCountDemo(reveal: Float) {
     Text("从这里看  →", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
     BuildingRow(listOf(2, 1, 4, 3), visible = setOf(0, 2), reveal = reveal)
@@ -353,47 +366,44 @@ private fun SkyCountDemo(reveal: Float) {
 }
 
 @Composable
-private fun SkyQuiz(onSolved: () -> Unit) {
-    val heights = listOf(2, 3, 1, 4)
-    var fromLeft by remember { mutableStateOf<Boolean?>(null) }
-    var message by remember { mutableStateOf("先点“从左边看”或“从右边看”") }
-    var solved by remember { mutableStateOf(false) }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedButton(
-            onClick = { fromLeft = true },
-            modifier = Modifier.testTag("visual_sky_left"),
-        ) { Text("从左边看") }
-        OutlinedButton(
-            onClick = { fromLeft = false },
-            modifier = Modifier.testTag("visual_sky_right"),
-        ) { Text("从右边看") }
-    }
-    val visible = fromLeft?.let { visibleBuildingIndices(heights, it) }.orEmpty()
+private fun SkyQuiz(puzzle: SudokuPuzzle, onSolved: () -> Unit) {
+    val visibleNumbers = setOf(2, 5, 6)
+    var selected by remember { mutableStateOf(setOf<Int>()) }
+    var message by remember { mutableStateOf("把能看见的数字都选中，再点一次可以取消。") }
+    val solved = selected == visibleNumbers
+    SixGridLessonBoard(
+        puzzle = puzzle,
+        board = puzzle.solution,
+        highlightCells = if (solved) setOf(0, 1, 5) else (0..5).toSet(),
+    )
     Text(
-        if (fromLeft == false) "←  从这里看" else "从这里看  →",
+        "从左边看  →  第一行外侧线索是 3",
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 8.dp),
     )
-    BuildingRow(heights, visible = visible)
-    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier.padding(top = 8.dp),
+    ) {
         for (value in 1..6) {
             NumberBadge(
                 value = value,
                 size = 42.dp,
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = if (value in selected) MaterialTheme.colorScheme.tertiaryContainer
+                else MaterialTheme.colorScheme.primaryContainer,
                 tag = "visual_sky_answer_$value",
                 onClick = {
-                    val direction = fromLeft
-                    if (direction == null) {
-                        message = "先选一个观察方向吧。"
-                    } else {
-                        val answer = visibleBuildingIndices(heights, direction).size
-                        if (value == answer) {
-                            solved = true
-                            message = "数对了！从这里能看到 $answer 栋楼。"
-                            onSolved()
-                        } else {
-                            message = "再数一次：只看最前面没被挡住的高楼。"
+                    if (!solved) {
+                        selected = if (value in selected) selected - value else selected + value
+                        when {
+                            selected == visibleNumbers -> {
+                                message = "找齐了！2、5、6 都能看见，正好是边缘数字 3。"
+                                onSolved()
+                            }
+                            value !in visibleNumbers && value in selected ->
+                                message = "$value 被前面更高的楼挡住了，再点一次可以取消。"
+                            value !in selected -> message = "已取消 $value，继续找齐可见数字。"
+                            else -> message = "已选中 ${selected.sorted().joinToString("、")}，继续找齐可见数字。"
                         }
                     }
                 },
@@ -487,35 +497,23 @@ private fun DiagonalTrace(onSolved: () -> Unit) {
 }
 
 @Composable
-private fun DiagonalDuplicate(onSolved: () -> Unit) {
-    val values = listOf(1, 2, 4, 4, 5, 6)
-    var message by remember { mutableStateOf("只看粉色滑梯上的数字") }
-    var solved by remember { mutableStateOf(false) }
-    MiniGrid(
-        size = 6,
-        cellSize = 40.dp,
-        cellContent = { row, column ->
-            val anti = row + column == 5
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(if (anti) Color(0xFFFFD4E2) else MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable {
-                        if (anti && values[row] == 4) {
-                            solved = true
-                            message = "找到了！粉色滑梯上有两个 4。"
-                            onSolved()
-                        } else {
-                            message = "这个数字没有重复，再沿着粉色滑梯看看。"
-                        }
-                    }
-                    .testTag("visual_diagonal_duplicate_${row}_$column"),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (anti) Text(values[row].toString(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        },
-    )
+private fun DiagonalDuplicate(puzzle: SudokuPuzzle, onSolved: () -> Unit) {
+    val target = 21
+    val diagonalCells = List(6) { it * 6 + it }.toSet()
+    var entry by remember { mutableStateOf<Int?>(null) }
+    var message by remember { mutableStateOf("主对角线：5、1、3、?、6、2") }
+    val solved = entry == puzzle.solution[target]
+    val board = puzzle.solution.mapIndexed { index, value -> if (index == target) entry ?: 0 else value }
+    SixGridLessonBoard(puzzle, board, highlightCells = diagonalCells, hintIndex = target)
+    LessonNumberChoices("visual_diagonal_number") { value ->
+        entry = value
+        if (value == puzzle.solution[target]) {
+            message = "对了！主对角线现在正好是 5、1、3、4、6、2。"
+            onSolved()
+        } else {
+            message = "主对角线上已经有 $value 了，看看还缺少谁。"
+        }
+    }
     InteractionMessage(message, solved)
 }
 
@@ -598,34 +596,63 @@ private fun KnightPair(value: Int, allowed: Boolean) {
 }
 
 @Composable
-private fun KnightChooseSafe(onSolved: () -> Unit) {
-    var message by remember { mutableStateOf("选 1、2、3 中的一张牌") }
-    var solved by remember { mutableStateOf(false) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        NumberBadge(2, color = MaterialTheme.colorScheme.primaryContainer)
-        Text("  小马跳到  ", style = MaterialTheme.typography.titleMedium)
-        NumberBadge(null, color = MaterialTheme.colorScheme.secondaryContainer)
-    }
-    Spacer(Modifier.height(14.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        for (value in 1..3) {
-            NumberBadge(
-                value = value,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                tag = "visual_knight_safe_$value",
-                onClick = {
-                    if (value == 2) {
-                        message = "落点也变成 2 了，会和小马那里的数字一样。"
-                    } else {
-                        solved = true
-                        message = "$value 和 2 不一样，这个数字很安全！"
-                        onSolved()
-                    }
-                },
-            )
+private fun KnightChooseSafe(puzzle: SudokuPuzzle, onSolved: () -> Unit) {
+    val target = 1
+    val knightCells = SudokuRules.knightCells(target)
+    var entry by remember { mutableStateOf<Int?>(null) }
+    var message by remember { mutableStateOf("按行、列、宫，发光格可以填 2 或 4。") }
+    val solved = entry == puzzle.solution[target]
+    val board = puzzle.givens.mapIndexed { index, value -> if (index == target) entry ?: 0 else value }
+    SixGridLessonBoard(puzzle, board, highlightCells = knightCells, hintIndex = target)
+    LessonNumberChoices("visual_knight_safe") { value ->
+        entry = value
+        when (value) {
+            puzzle.solution[target] -> {
+                message = "对了！马步落点的 2 排除了 2，所以这里填 4。"
+                onSolved()
+            }
+            2 -> message = "第 3 行第 3 列的 2 和这里是马步关系，所以这里不能填 2。"
+            else -> message = "先看行、列、宫，这一格只可能填 2 或 4。"
         }
     }
     InteractionMessage(message, solved)
+}
+
+@Composable
+private fun SixGridLessonBoard(
+    puzzle: SudokuPuzzle,
+    board: List<Int>,
+    highlightCells: Set<Int>,
+    hintIndex: Int? = null,
+) {
+    SudokuBoard(
+        puzzle = puzzle,
+        board = board,
+        notes = List(CELL_COUNT) { emptySet() },
+        selectedIndex = null,
+        conflictCells = SudokuRules.conflictingCells(board, puzzle),
+        highlightCells = highlightCells,
+        hintIndex = hintIndex,
+        interactive = false,
+    )
+}
+
+@Composable
+private fun LessonNumberChoices(tagPrefix: String, onClick: (Int) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier.padding(top = 8.dp),
+    ) {
+        for (value in 1..6) {
+            NumberBadge(
+                value = value,
+                size = 42.dp,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tag = "${tagPrefix}_$value",
+                onClick = { onClick(value) },
+            )
+        }
+    }
 }
 
 @Composable

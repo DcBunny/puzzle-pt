@@ -33,7 +33,7 @@ fun HomeScreen(
     val completedPuzzles = progressVersion.let {
         PuzzleRepository.puzzles.count { store.isPuzzleComplete(it.id) }
     }
-    val completedLessons = SudokuType.entries.count { store.isLessonComplete(it) }
+    val completedLessons = SudokuType.entries.count { it != SudokuType.STANDARD && store.isLessonComplete(it) }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("home_screen"),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -56,7 +56,7 @@ fun HomeScreen(
                         modifier = Modifier.padding(top = 6.dp),
                     )
                     Text(
-                        text = "已完成 $completedLessons/5 课  ·  $completedPuzzles/15 题",
+                        text = "已完成 $completedLessons/4 课  ·  $completedPuzzles/15 题",
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.padding(top = 14.dp),
                     )
@@ -74,7 +74,8 @@ fun HomeScreen(
         items(SudokuType.entries) { type ->
             val puzzles = PuzzleRepository.puzzlesOf(type)
             val completed = puzzles.count { store.isPuzzleComplete(it.id) }
-            val lessonComplete = store.isLessonComplete(type)
+            val hasLesson = type != SudokuType.STANDARD
+            val lessonComplete = hasLesson && store.isLessonComplete(type)
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -83,11 +84,13 @@ fun HomeScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
-                        Text(
-                            text = if (lessonComplete) "已学完" else "未学完",
-                            color = if (lessonComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
+                        if (hasLesson) {
+                            Text(
+                                text = if (lessonComplete) "已学完" else "未学完",
+                                color = if (lessonComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
                     }
                     Text(
                         text = type.subtitle,
@@ -110,10 +113,12 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        OutlinedButton(
-                            onClick = { onTeach(type) },
-                            modifier = Modifier.weight(1f).testTag("lesson_${type.name}"),
-                        ) { Text("教学") }
+                        if (hasLesson) {
+                            OutlinedButton(
+                                onClick = { onTeach(type) },
+                                modifier = Modifier.weight(1f).testTag("lesson_${type.name}"),
+                            ) { Text("教学") }
+                        }
                         Button(
                             onClick = { onPractice(type) },
                             modifier = Modifier.weight(1f).testTag("practice_${type.name}"),

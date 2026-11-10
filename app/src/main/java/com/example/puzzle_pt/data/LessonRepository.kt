@@ -49,142 +49,48 @@ data class LessonStep(
 
 object LessonRepository {
     fun stepsFor(type: SudokuType): List<LessonStep> {
+        if (type == SudokuType.STANDARD) return emptyList()
         val steps = when (type) {
-            SudokuType.STANDARD -> listOf(
-                LessonStep(
-                    "数字小伙伴来排队",
-                    "每个小队都要有 1 到 6。",
-                    "一样的数字不能来两次。",
-                    LessonVisualKind.NUMBER_FRIENDS,
-                ),
-                LessonStep(
-                    "找找三个数字小队",
-                    "横着叫一行，竖着叫一列。",
-                    "粗线围起来的小家，叫做一宫。",
-                    LessonVisualKind.GROUP_TOUR,
-                ),
-                LessonStep(
-                    "谁多来了一个？",
-                    "这个小队里，有一个数字出现了两次。",
-                    "点一点重复的 2。",
-                    LessonVisualKind.STANDARD_DUPLICATE,
-                    LessonInteraction.FIND_STANDARD_DUPLICATE,
-                ),
-                LessonStep(
-                    "谁还没有来？",
-                    "小队在等一个数字小伙伴。",
-                    "点一下缺少的数字牌。",
-                    LessonVisualKind.STANDARD_MISSING,
-                    LessonInteraction.FIND_STANDARD_MISSING,
-                ),
-            )
+            SudokuType.STANDARD -> emptyList()
             SudokuType.KILLER -> listOf(
                 LessonStep(
-                    "数字住进加法小屋",
-                    "虚线围起来的地方，就是加法小屋。",
-                    "小屋里也要遵守数独的小队规则。",
-                    LessonVisualKind.KILLER_HOUSE,
-                ),
-                LessonStep(
-                    "屋角的小数会说话",
-                    "1、2、3 合起来是 6。",
-                    "所以屋角写着 6。",
-                    LessonVisualKind.KILLER_ADD,
-                ),
-                LessonStep(
-                    "帮小屋凑到 6",
-                    "选一些数字牌放进小屋。",
-                    "让它们合起来正好是 6。",
+                    "加法小屋来帮忙",
+                    "除了标准规则，同一虚线笼里的数字不能重复，合起来要等于笼角的数。",
+                    "第一行小屋已有 1 和 4，屋角是 10。用减法找出空格的数字。",
                     LessonVisualKind.KILLER_MAKE_SUM,
                     LessonInteraction.MAKE_KILLER_SUM,
-                ),
-                LessonStep(
-                    "一样的数字不能住一起",
-                    "这间小屋里，2 来了两次。",
-                    "点一点重复的 2。",
-                    LessonVisualKind.KILLER_DUPLICATE,
-                    LessonInteraction.FIND_KILLER_DUPLICATE,
                 ),
             )
             SudokuType.SKYSCRAPER -> listOf(
                 LessonStep(
                     "数字变成小楼",
-                    "数字是几，小楼就有几层高。",
-                    "6 楼最高，1 楼最矮。",
+                    "数字是几，小楼就有几层高；高楼会挡住后面的矮楼。",
+                    "从左边看，数一数能看到几栋楼。",
                     LessonVisualKind.SKY_HEIGHTS,
-                ),
-                LessonStep(
-                    "高楼挡住矮楼",
-                    "从箭头这边向小楼看。",
-                    "前面更高的楼，会挡住后面的矮楼。",
-                    LessonVisualKind.SKY_COUNT,
-                ),
-                LessonStep(
-                    "你看到几栋楼？",
-                    "先选从哪边看，再慢慢数一数。",
-                    "只看到挡住别人、或没被挡住的高楼。",
-                    LessonVisualKind.SKY_QUIZ,
                     LessonInteraction.COUNT_SKYSCRAPERS,
                 ),
                 LessonStep(
-                    "线索 1 的小秘密",
-                    "如果只能看到 1 栋楼，",
-                    "最高的 6 楼一定站在最前面。",
-                    LessonVisualKind.SKY_SIX_FIRST,
+                    "棋盘边缘的数字",
+                    "边缘数字表示：从这一侧看过去，一共能看到几栋楼。",
+                    "第一行从左边看，边缘线索是 3。把可见数字都选中。",
+                    LessonVisualKind.SKY_QUIZ,
+                    LessonInteraction.COUNT_SKYSCRAPERS,
                 ),
             )
             SudokuType.DIAGONAL -> listOf(
                 LessonStep(
-                    "两条彩色滑梯线",
-                    "角对角连起来，就是一条滑梯线。",
-                    "蓝色和粉色滑梯，都住着数字小伙伴。",
-                    LessonVisualKind.DIAGONAL_LINES,
-                ),
-                LessonStep(
-                    "滑梯小队也不重复",
-                    "每条滑梯上，都要有 1 到 6。",
-                    "一样的数字不能来两次。",
-                    LessonVisualKind.DIAGONAL_NUMBERS,
-                ),
-                LessonStep(
-                    "沿着滑梯走一走",
-                    "蓝色滑梯一共有 6 格。",
-                    "把这 6 格全部点亮。",
-                    LessonVisualKind.DIAGONAL_TRACE,
-                    LessonInteraction.TRACE_DIAGONAL,
-                ),
-                LessonStep(
-                    "谁在滑梯上重复了？",
-                    "粉色滑梯上，4 来了两次。",
-                    "点一点其中一个 4。",
+                    "对角线也能帮你排除",
+                    "除了标准规则，两条主对角线也都要有 1 到 6，数字不能重复。",
+                    "主对角线上已有 5、1、3、6、2，找出空格缺少的数字。",
                     LessonVisualKind.DIAGONAL_DUPLICATE,
                     LessonInteraction.FIND_DIAGONAL_DUPLICATE,
                 ),
             )
             SudokuType.ANTI_KNIGHT -> listOf(
                 LessonStep(
-                    "小马跳一个“日”字",
-                    "小马先走两格，再拐一格。",
-                    "跟着亮起来的小路看一看。",
-                    LessonVisualKind.KNIGHT_MOVE,
-                ),
-                LessonStep(
-                    "小马能跳到哪里？",
-                    "从这个“马”字出发，找一找落点。",
-                    "点亮小马能跳到的 4 个格子。",
-                    LessonVisualKind.KNIGHT_FIND_MOVES,
-                    LessonInteraction.FIND_KNIGHT_MOVES,
-                ),
-                LessonStep(
-                    "相同数字不能见面",
-                    "小马和落点上，不能住一样的数字。",
-                    "不同的数字就可以。",
-                    LessonVisualKind.KNIGHT_SAME,
-                ),
-                LessonStep(
-                    "哪个数字安全？",
-                    "小马那里住着一个 2。",
-                    "选一个不是 2 的数字放到落点。",
+                    "马步也能帮你排除",
+                    "除了标准规则，走两格再拐一格的两格，不能填相同数字。",
+                    "第 1 行第 2 列按标准规则可填 2 或 4，看看马步落点后填数。",
                     LessonVisualKind.KNIGHT_CHOOSE_SAFE,
                     LessonInteraction.CHOOSE_SAFE_KNIGHT_NUMBER,
                 ),
@@ -192,18 +98,26 @@ object LessonRepository {
         }
         return steps + LessonStep(
             "你来试一试",
-            "现在回到真正的六宫棋盘。",
+            when (type) {
+                SudokuType.STANDARD -> "看看这一行、这一列和这一宫，找出缺少的数字。"
+                SudokuType.KILLER -> "看看小屋还差多少，再检查这一行、这一列和这一宫。"
+                SudokuType.SKYSCRAPER -> "从箭头方向数一数，看到的楼数要和外面的线索一样。"
+                SudokuType.DIAGONAL -> "除了行、列和宫，也看看对角线还缺哪个数字。"
+                SudokuType.ANTI_KNIGHT -> "除了行、列和宫，也看看马步落点，不能填相同数字。"
+            },
             "给发光的小格填上正确的数字。",
             LessonVisualKind.NUMBER_FRIENDS,
         )
     }
 
     fun examplePuzzle(type: SudokuType): SudokuPuzzle {
-        val puzzle = PuzzleRepository.puzzlesOf(type).first()
-        return puzzle.copy(givens = puzzle.solution)
+        val puzzles = PuzzleRepository.puzzlesOf(type)
+        val puzzle = if (type == SudokuType.ANTI_KNIGHT) puzzles[1] else puzzles.first()
+        return if (type == SudokuType.ANTI_KNIGHT) puzzle else puzzle.copy(givens = puzzle.solution)
     }
 
     fun guidedPuzzle(type: SudokuType): SudokuPuzzle {
+        if (type == SudokuType.ANTI_KNIGHT) return PuzzleRepository.puzzlesOf(type)[1]
         val puzzle = PuzzleRepository.puzzlesOf(type).first()
         val target = puzzle.givens.indices.first { index ->
             val row = index / 6
@@ -214,5 +128,10 @@ object LessonRepository {
         }
         val givens = puzzle.solution.toMutableList().apply { this[target] = 0 }
         return puzzle.copy(givens = givens)
+    }
+
+    fun guidedTargetIndex(type: SudokuType): Int {
+        if (type == SudokuType.ANTI_KNIGHT) return 22
+        return guidedPuzzle(type).givens.indexOf(0)
     }
 }
