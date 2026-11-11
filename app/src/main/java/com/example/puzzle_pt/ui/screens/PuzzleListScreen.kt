@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.puzzle_pt.data.ProgressStore
 import com.example.puzzle_pt.data.PuzzleRepository
+import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
 import com.example.puzzle_pt.ui.components.AppTopBar
@@ -27,14 +28,15 @@ import com.example.puzzle_pt.ui.components.AppTopBar
 @Composable
 fun PuzzleListScreen(
     type: SudokuType,
+    difficulty: Difficulty,
     store: ProgressStore,
     progressVersion: Int,
     onBack: () -> Unit,
     onSelect: (SudokuPuzzle) -> Unit,
 ) {
-    val puzzles = PuzzleRepository.puzzlesOf(type)
+    val puzzles = PuzzleRepository.puzzlesOf(type).filter { it.difficulty == difficulty }
     Column(Modifier.fillMaxSize()) {
-        AppTopBar("${type.title}练习", onBack = onBack)
+        AppTopBar("${type.title} · ${difficulty.title}", onBack = onBack)
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -47,7 +49,7 @@ fun PuzzleListScreen(
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
-            items(puzzles) { puzzle ->
+            itemsIndexed(puzzles) { index, puzzle ->
                 val completed = progressVersion.let { store.isPuzzleComplete(puzzle.id) }
                 val inProgress = store.hasSavedGame(puzzle.id)
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -56,14 +58,27 @@ fun PuzzleListScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(
-                                text = puzzle.difficulty.title,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "第${listOf("一", "二", "三", "四", "五")[index]}道",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                if (completed) {
+                                    Text(
+                                        text = "✓ 已完成",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .padding(start = 12.dp)
+                                            .testTag("completed_${puzzle.id}"),
+                                    )
+                                }
+                            }
                             Text(
                                 text = when {
-                                    completed -> "已完成，可再次挑战"
+                                    completed -> "可再次挑战"
                                     inProgress -> "进行中，继续上次进度"
                                     else -> "${puzzle.givens.count { it == 0 }} 个空格等待完成"
                                 },

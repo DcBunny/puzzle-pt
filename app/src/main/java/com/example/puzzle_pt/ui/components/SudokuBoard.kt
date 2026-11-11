@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -125,6 +127,11 @@ private fun BoardGrid(
                                 .clickable(enabled = interactive) { onCellSelected(index) },
                             contentAlignment = Alignment.Center,
                         ) {
+                            val cage = if (puzzle.type == SudokuType.KILLER) {
+                                puzzle.cages.firstOrNull { it.cells.first().index == index }
+                            } else {
+                                null
+                            }
                             when {
                                 board[index] != 0 -> Text(
                                     text = board[index].toString(),
@@ -136,18 +143,26 @@ private fun BoardGrid(
                                         else -> colors.primary
                                     },
                                 )
-                                notes[index].isNotEmpty() -> CandidateNotes(notes[index])
+                                notes[index].isNotEmpty() -> CandidateNotes(
+                                    candidates = notes[index],
+                                    hasCageSum = cage != null,
+                                )
                             }
-                            if (puzzle.type == SudokuType.KILLER) {
-                                val cage = puzzle.cages.firstOrNull { it.cells.first().index == index }
-                                if (cage != null) {
-                                    Text(
-                                        text = cage.sum.toString(),
-                                        fontSize = 9.sp,
-                                        color = colors.primary,
-                                        modifier = Modifier.align(Alignment.TopStart).padding(2.dp),
-                                    )
-                                }
+                            if (cage != null) {
+                                Text(
+                                    text = cage.sum.toString(),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.primary,
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(3.dp)
+                                        .background(
+                                            color = colors.surface.copy(alpha = 0.92f),
+                                            shape = RoundedCornerShape(4.dp),
+                                        )
+                                        .padding(horizontal = 3.dp, vertical = 1.dp),
+                                )
                             }
                         }
                     }
@@ -159,8 +174,15 @@ private fun BoardGrid(
 }
 
 @Composable
-private fun CandidateNotes(candidates: Set<Int>) {
-    Column(Modifier.fillMaxSize().padding(3.dp)) {
+private fun CandidateNotes(candidates: Set<Int>, hasCageSum: Boolean) {
+    Column(
+        Modifier.fillMaxSize().padding(
+            start = if (hasCageSum) 28.dp else 3.dp,
+            top = 3.dp,
+            end = 3.dp,
+            bottom = 3.dp,
+        ),
+    ) {
         for (row in 0..1) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 for (column in 0..2) {
@@ -207,28 +229,57 @@ private fun GridLines(puzzle: SudokuPuzzle) {
             puzzle.cages.forEachIndexed { cageIndex, cage ->
                 cage.cells.forEach { cageAt[it.index] = cageIndex }
             }
-            val dash = PathEffect.dashPathEffect(floatArrayOf(7f, 5f))
-            val cageStroke = 1.4.dp.toPx()
+            val dash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 3.dp.toPx()))
+            val cageStroke = 2.dp.toPx()
+            val cageInset = 3.dp.toPx()
             puzzle.cages.forEach { cage ->
                 cage.cells.forEach { position ->
                     val index = position.index
                     val row = position.row
                     val column = position.column
-                    val left = column * cellWidth + 3f
-                    val right = (column + 1) * cellWidth - 3f
-                    val top = row * cellHeight + 3f
-                    val bottom = (row + 1) * cellHeight - 3f
+                    val left = column * cellWidth + cageInset
+                    val right = (column + 1) * cellWidth - cageInset
+                    val top = row * cellHeight + cageInset
+                    val bottom = (row + 1) * cellHeight - cageInset
                     if (row == 0 || cageAt[index - SUDOKU_SIZE] != cageAt[index]) {
-                        drawLine(cageColor, Offset(left, top), Offset(right, top), cageStroke, pathEffect = dash)
+                        drawLine(
+                            color = cageColor,
+                            start = Offset(left, top),
+                            end = Offset(right, top),
+                            strokeWidth = cageStroke,
+                            cap = StrokeCap.Round,
+                            pathEffect = dash,
+                        )
                     }
                     if (row == 5 || cageAt[index + SUDOKU_SIZE] != cageAt[index]) {
-                        drawLine(cageColor, Offset(left, bottom), Offset(right, bottom), cageStroke, pathEffect = dash)
+                        drawLine(
+                            color = cageColor,
+                            start = Offset(left, bottom),
+                            end = Offset(right, bottom),
+                            strokeWidth = cageStroke,
+                            cap = StrokeCap.Round,
+                            pathEffect = dash,
+                        )
                     }
                     if (column == 0 || cageAt[index - 1] != cageAt[index]) {
-                        drawLine(cageColor, Offset(left, top), Offset(left, bottom), cageStroke, pathEffect = dash)
+                        drawLine(
+                            color = cageColor,
+                            start = Offset(left, top),
+                            end = Offset(left, bottom),
+                            strokeWidth = cageStroke,
+                            cap = StrokeCap.Round,
+                            pathEffect = dash,
+                        )
                     }
                     if (column == 5 || cageAt[index + 1] != cageAt[index]) {
-                        drawLine(cageColor, Offset(right, top), Offset(right, bottom), cageStroke, pathEffect = dash)
+                        drawLine(
+                            color = cageColor,
+                            start = Offset(right, top),
+                            end = Offset(right, bottom),
+                            strokeWidth = cageStroke,
+                            cap = StrokeCap.Round,
+                            pathEffect = dash,
+                        )
                     }
                 }
             }

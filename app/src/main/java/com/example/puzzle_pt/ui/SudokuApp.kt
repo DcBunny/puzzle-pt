@@ -15,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.example.puzzle_pt.data.ProgressStore
 import com.example.puzzle_pt.data.PuzzleRepository
+import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.SudokuType
+import com.example.puzzle_pt.ui.screens.DifficultyScreen
 import com.example.puzzle_pt.ui.screens.HomeScreen
 import com.example.puzzle_pt.ui.screens.LessonScreen
 import com.example.puzzle_pt.ui.screens.PracticeScreen
@@ -24,7 +26,8 @@ import com.example.puzzle_pt.ui.screens.PuzzleListScreen
 private sealed interface Screen {
     data object Home : Screen
     data class Lesson(val type: SudokuType) : Screen
-    data class PuzzleList(val type: SudokuType) : Screen
+    data class DifficultySelection(val type: SudokuType) : Screen
+    data class PuzzleList(val type: SudokuType, val difficulty: Difficulty) : Screen
     data class Practice(val puzzleId: String) : Screen
 }
 
@@ -39,8 +42,12 @@ fun SudokuApp() {
         screen = when (val current = screen) {
             Screen.Home -> Screen.Home
             is Screen.Lesson -> Screen.Home
-            is Screen.PuzzleList -> Screen.Home
-            is Screen.Practice -> Screen.PuzzleList(PuzzleRepository.puzzleById(current.puzzleId).type)
+            is Screen.DifficultySelection -> Screen.Home
+            is Screen.PuzzleList -> Screen.DifficultySelection(current.type)
+            is Screen.Practice -> {
+                val puzzle = PuzzleRepository.puzzleById(current.puzzleId)
+                Screen.PuzzleList(puzzle.type, puzzle.difficulty)
+            }
         }
     }
 
@@ -55,17 +62,23 @@ fun SudokuApp() {
                 store = store,
                 progressVersion = progressVersion,
                 onTeach = { screen = Screen.Lesson(it) },
-                onPractice = { screen = Screen.PuzzleList(it) },
+                onPractice = { screen = Screen.DifficultySelection(it) },
             )
             is Screen.Lesson -> LessonScreen(
                 type = current.type,
                 store = store,
                 onBack = ::goBack,
-                onPractice = { screen = Screen.PuzzleList(current.type) },
+                onPractice = { screen = Screen.DifficultySelection(current.type) },
                 onProgressChanged = { progressVersion++ },
+            )
+            is Screen.DifficultySelection -> DifficultyScreen(
+                type = current.type,
+                onBack = ::goBack,
+                onSelect = { screen = Screen.PuzzleList(current.type, it) },
             )
             is Screen.PuzzleList -> PuzzleListScreen(
                 type = current.type,
+                difficulty = current.difficulty,
                 store = store,
                 progressVersion = progressVersion,
                 onBack = ::goBack,
@@ -73,7 +86,7 @@ fun SudokuApp() {
             )
             is Screen.Practice -> {
                 val puzzle = PuzzleRepository.puzzleById(current.puzzleId)
-                val puzzles = PuzzleRepository.puzzlesOf(puzzle.type)
+                val puzzles = PuzzleRepository.puzzlesOf(puzzle.type).filter { it.difficulty == puzzle.difficulty }
                 val next = puzzles.getOrNull(puzzles.indexOf(puzzle) + 1)
                 PracticeScreen(
                     puzzle = puzzle,

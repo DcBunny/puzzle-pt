@@ -3,6 +3,7 @@ package com.example.puzzle_pt
 import com.example.puzzle_pt.data.PuzzleRepository
 import com.example.puzzle_pt.engine.SudokuRules
 import com.example.puzzle_pt.engine.SudokuSolver
+import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
 import org.junit.Assert.assertEquals
@@ -13,11 +14,26 @@ import org.junit.Test
 class SudokuRulesTest {
     @Test
     fun allBuiltInPuzzlesHaveValidUniqueSolutions() {
-        assertEquals(15, PuzzleRepository.puzzles.size)
+        assertEquals(75, PuzzleRepository.puzzles.size)
+        assertEquals(75, PuzzleRepository.puzzles.map { it.id }.distinct().size)
         PuzzleRepository.puzzles.forEach { puzzle ->
             assertTrue(puzzle.id, SudokuRules.isComplete(puzzle.solution, puzzle))
             assertEquals(puzzle.id, puzzle.solution, SudokuSolver.solve(puzzle))
             assertEquals(puzzle.id, 1, SudokuSolver.countSolutions(puzzle))
+        }
+    }
+
+    @Test
+    fun everyTypeAndDifficultyHasFivePuzzles() {
+        SudokuType.entries.forEach { type ->
+            assertEquals(type.title, 15, PuzzleRepository.puzzlesOf(type).size)
+            Difficulty.entries.forEach { difficulty ->
+                assertEquals(
+                    "${type.title} ${difficulty.title}",
+                    5,
+                    PuzzleRepository.puzzles.count { it.type == type && it.difficulty == difficulty },
+                )
+            }
         }
     }
 

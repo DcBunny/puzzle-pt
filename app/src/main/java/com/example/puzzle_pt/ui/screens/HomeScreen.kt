@@ -56,7 +56,7 @@ fun HomeScreen(
                         modifier = Modifier.padding(top = 6.dp),
                     )
                     Text(
-                        text = "已完成 $completedLessons/4 课  ·  $completedPuzzles/15 题",
+                        text = "已完成 $completedLessons/4 课  ·  $completedPuzzles/${PuzzleRepository.puzzles.size} 题",
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.padding(top = 14.dp),
                     )
@@ -104,7 +104,7 @@ fun HomeScreen(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                     Text(
-                        text = "练习进度 $completed/3",
+                        text = "练习进度 $completed/${puzzles.size}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
