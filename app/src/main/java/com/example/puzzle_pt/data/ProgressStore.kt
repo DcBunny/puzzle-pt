@@ -47,6 +47,9 @@ class ProgressStore(context: Context) {
         val boardValue = preferences.getString(boardKey(puzzle.id), null) ?: return null
         val maxDigit = '0' + puzzle.size
         if (boardValue.length != puzzle.cellCount || boardValue.any { it !in '0'..maxDigit }) return null
+        val board = boardValue.map { it.digitToInt() }
+        // 题库更新后旧存档可能与新题目的给定格不一致，直接丢弃而不是恢复错误盘面。
+        if (!savedBoardMatchesGivens(board, puzzle)) return null
         val notesValue = preferences.getString(notesKey(puzzle.id), null)
         val masks = notesValue?.split(',')?.mapNotNull { it.toIntOrNull() }.orEmpty()
         val notes = List(puzzle.cellCount) { index ->
@@ -54,7 +57,7 @@ class ProgressStore(context: Context) {
             (1..puzzle.size).filter { mask and (1 shl it) != 0 }.toSet()
         }
         return SavedGame(
-            board = boardValue.map { it.digitToInt() },
+            board = board,
             notes = notes,
             elapsedSeconds = preferences.getLong(timeKey(puzzle.id), 0L),
         )
@@ -74,3 +77,9 @@ class ProgressStore(context: Context) {
     private fun notesKey(puzzleId: String) = "notes_$puzzleId"
     private fun timeKey(puzzleId: String) = "time_$puzzleId"
 }
+
+internal fun savedBoardMatchesGivens(board: List<Int>, puzzle: SudokuPuzzle): Boolean =
+    board.size == puzzle.cellCount &&
+        puzzle.givens.indices.all { index ->
+            puzzle.givens[index] == 0 || board[index] == puzzle.givens[index]
+        }
