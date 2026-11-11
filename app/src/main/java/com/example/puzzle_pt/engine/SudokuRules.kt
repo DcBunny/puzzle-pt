@@ -101,6 +101,21 @@ object SudokuRules {
         }
     }
 
+    /**
+     * 行、列、宫（以及对角线题的两条对角线）。供逻辑难度分析和技巧提示复用。
+     */
+    fun units(puzzle: SudokuPuzzle): List<List<Int>> = buildList {
+        for (row in 0 until puzzle.size) add(rowIndices(row, puzzle.size))
+        for (column in 0 until puzzle.size) add(columnIndices(column, puzzle.size))
+        addAll(boxGroups(puzzle))
+        if (puzzle.type == SudokuType.DIAGONAL) {
+            add(mainDiagonal(puzzle.size))
+            add(antiDiagonal(puzzle.size))
+        }
+    }
+
+    fun boxes(puzzle: SudokuPuzzle): List<List<Int>> = boxGroups(puzzle)
+
     fun visibleBuildings(values: List<Int>): Int {
         var tallest = 0
         var visible = 0

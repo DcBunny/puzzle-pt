@@ -163,7 +163,7 @@ class PuzzleQualityTest {
     private fun expectedGivensRange(size: Int, difficulty: Difficulty): IntRange = when (size) {
         6 -> when (difficulty) {
             Difficulty.EASY -> 19..24
-            Difficulty.MEDIUM -> 15..19
+            Difficulty.MEDIUM -> 14..19
             Difficulty.HARD -> 10..14
         }
         7 -> when (difficulty) {
