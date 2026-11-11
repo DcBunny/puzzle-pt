@@ -1,13 +1,16 @@
 package com.example.puzzle_pt.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -34,12 +37,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.puzzle_pt.data.ProgressStore
 import com.example.puzzle_pt.engine.SudokuRules
-import com.example.puzzle_pt.model.CELL_COUNT
 import com.example.puzzle_pt.model.SudokuHint
 import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
 import com.example.puzzle_pt.ui.components.AppTopBar
 import com.example.puzzle_pt.ui.components.SudokuBoard
+import com.example.puzzle_pt.ui.isTabletLandscape
 import kotlinx.coroutines.delay
 
 private data class GameMove(
@@ -55,10 +58,10 @@ fun PracticeScreen(
     onNext: (() -> Unit)?,
     onProgressChanged: () -> Unit,
 ) {
-    val savedGame = remember(puzzle.id) { store.loadGame(puzzle.id) }
+    val savedGame = remember(puzzle.id) { store.loadGame(puzzle) }
     var board by remember(puzzle.id) { mutableStateOf(savedGame?.board ?: puzzle.givens) }
     var notes by remember(puzzle.id) {
-        mutableStateOf(savedGame?.notes ?: List(CELL_COUNT) { emptySet() })
+        mutableStateOf(savedGame?.notes ?: List(puzzle.cellCount) { emptySet() })
     }
     var elapsedSeconds by remember(puzzle.id) { mutableStateOf(savedGame?.elapsedSeconds ?: 0L) }
     var selectedIndex by remember(puzzle.id) { mutableStateOf<Int?>(null) }
@@ -115,7 +118,7 @@ fun PracticeScreen(
         } else {
             val newBoard = board.toMutableList().apply { this[index] = value }
             board = newBoard
-            val affected = SudokuRules.relatedCells(index, puzzle.type) + index
+            val affected = SudokuRules.relatedCells(index, puzzle) + index
             notes = notes.mapIndexed { cell, candidates ->
                 when {
                     cell == index -> emptySet()
@@ -126,7 +129,7 @@ fun PracticeScreen(
             val newConflicts = SudokuRules.conflictingCells(newBoard, puzzle)
             feedback = if (newConflicts[index]) {
                 when (puzzle.type) {
-                    SudokuType.STANDARD -> "这里有重复数字，检查所在行、列和宫"
+                    SudokuType.STANDARD, SudokuType.SEVEN, SudokuType.NINE -> "这里有重复数字，检查所在行、列和宫"
                     SudokuType.KILLER -> "检查笼内是否重复，以及数字之和是否正确"
                     SudokuType.SKYSCRAPER -> "这一行或列的可见楼数与外侧线索不符"
                     SudokuType.DIAGONAL -> "检查所在行、列、宫和两条对角线"
@@ -167,7 +170,7 @@ fun PracticeScreen(
     fun reset() {
         recordHistory()
         board = puzzle.givens
-        notes = List(CELL_COUNT) { emptySet() }
+        notes = List(puzzle.cellCount) { emptySet() }
         elapsedSeconds = 0
         solvedThisSession = false
         showCompletion = false
@@ -186,10 +189,10 @@ fun PracticeScreen(
         val index = emptyCells.firstOrNull {
             SudokuRules.candidates(board.toIntArray(), it, puzzle).size == 1
         } ?: emptyCells.first()
-        val row = index / 6 + 1
-        val column = index % 6 + 1
+        val row = index / puzzle.size + 1
+        val column = index % puzzle.size + 1
         val reason = when (puzzle.type) {
-            SudokuType.STANDARD -> "排除这一行、这一列和这一宫已有的数字"
+            SudokuType.STANDARD, SudokuType.SEVEN, SudokuType.NINE -> "排除这一行、这一列和这一宫已有的数字"
             SudokuType.KILLER -> "结合所在笼还需凑出的和，并排除行、列、宫已有数字"
             SudokuType.SKYSCRAPER -> "结合外侧楼数线索，再排除行、列、宫已有数字"
             SudokuType.DIAGONAL -> "除了行、列、宫，也检查它所在的对角线"
@@ -228,13 +231,34 @@ fun PracticeScreen(
                 }
             },
         )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        if (isTabletLandscape()) {
+            PracticeLandscapeBody(
+                puzzle = puzzle,
+                board = board,
+                notes = notes,
+                selectedIndex = selectedIndex,
+                conflicts = conflicts,
+                hint = hint,
+                feedback = feedback,
+                running = running,
+                elapsedSeconds = elapsedSeconds,
+                notesMode = notesMode,
+                onCellSelected = { selectedIndex = it },
+                onNumber = ::enterNumber,
+                onToggleNotes = { notesMode = !notesMode },
+                onUndo = ::undo,
+                onErase = ::erase,
+                onReset = ::reset,
+                onHint = ::requestHint,
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
             Text(
                 text = "用时 ${formatTime(elapsedSeconds)}  ·  剩余 ${board.count { it == 0 }} 格",
                 style = MaterialTheme.typography.bodyMedium,
@@ -281,18 +305,11 @@ fun PracticeScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(vertical = 8.dp).testTag("game_feedback"),
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (value in 1..6) {
-                    Button(
-                        onClick = { enterNumber(value) },
-                        enabled = running,
-                        modifier = Modifier.weight(1f).testTag("number_$value"),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                    ) {
-                        Text(value.toString(), fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+            NumberPad(
+                size = puzzle.size,
+                enabled = running,
+                onNumber = ::enterNumber,
+            )
             Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                 TextButton(
                     onClick = { notesMode = !notesMode },
@@ -313,7 +330,8 @@ fun PracticeScreen(
                     Text(if (notesMode) "返回填数" else "记录候选数")
                 }
             }
-            Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 
@@ -329,6 +347,148 @@ fun PracticeScreen(
                 TextButton(onClick = { showCompletion = false }) { Text("查看棋盘") }
             },
         )
+    }
+}
+
+@Composable
+private fun PracticeLandscapeBody(
+    puzzle: SudokuPuzzle,
+    board: List<Int>,
+    notes: List<Set<Int>>,
+    selectedIndex: Int?,
+    conflicts: BooleanArray,
+    hint: SudokuHint?,
+    feedback: String,
+    running: Boolean,
+    elapsedSeconds: Long,
+    notesMode: Boolean,
+    onCellSelected: (Int) -> Unit,
+    onNumber: (Int) -> Unit,
+    onToggleNotes: () -> Unit,
+    onUndo: () -> Unit,
+    onErase: () -> Unit,
+    onReset: () -> Unit,
+    onHint: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxSize().padding(24.dp).testTag("practice_landscape"),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        Column(
+            modifier = Modifier.weight(1.15f).fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "用时 ${formatTime(elapsedSeconds)}  ·  剩余 ${board.count { it == 0 }} 格",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 10.dp),
+            )
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                val boardSize = minOf(maxWidth, maxHeight, 560.dp)
+                if (running) {
+                    SudokuBoard(
+                        puzzle = puzzle,
+                        board = board,
+                        notes = notes,
+                        selectedIndex = selectedIndex,
+                        conflictCells = conflicts,
+                        hintIndex = hint?.index,
+                        onCellSelected = onCellSelected,
+                        modifier = Modifier.size(boardSize),
+                    )
+                } else {
+                    Card(
+                        modifier = Modifier.size(boardSize),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text("已暂停", style = MaterialTheme.typography.headlineMedium)
+                            Text("点击右上角“继续”回到题目", modifier = Modifier.padding(top = 8.dp))
+                        }
+                    }
+                }
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            hint?.let {
+                Text(
+                    text = it.explanation,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+            Text(
+                text = feedback,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(vertical = 12.dp).testTag("game_feedback"),
+            )
+            NumberPad(
+                size = puzzle.size,
+                enabled = running,
+                onNumber = onNumber,
+                landscape = true,
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                TextButton(
+                    onClick = onToggleNotes,
+                    modifier = Modifier.weight(1f).testTag("notes_mode_button"),
+                ) { Text(if (notesMode) "笔记：开" else "笔记：关") }
+                TextButton(onClick = onUndo, modifier = Modifier.weight(1f).testTag("undo_button")) { Text("撤销") }
+                TextButton(onClick = onErase, modifier = Modifier.weight(1f)) { Text("擦除") }
+                TextButton(onClick = onReset, modifier = Modifier.weight(1f).testTag("reset_button")) { Text("重置") }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onHint, modifier = Modifier.weight(1f).testTag("hint_button")) {
+                    Text("给我提示")
+                }
+                FilledTonalButton(onClick = onToggleNotes, modifier = Modifier.weight(1f)) {
+                    Text(if (notesMode) "返回填数" else "记录候选数")
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun NumberPad(size: Int, enabled: Boolean, onNumber: (Int) -> Unit, landscape: Boolean = false) {
+    val rows = if (landscape) {
+        (1..size).chunked(3)
+    } else if (size == 9) {
+        listOf(1..5, 6..9)
+    } else {
+        listOf(1..size)
+    }
+    rows.forEachIndexed { rowIndex, values ->
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = if (rowIndex == 0) 0.dp else 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            for (value in values) {
+                Button(
+                    onClick = { onNumber(value) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).testTag("number_$value"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                ) {
+                    Text(value.toString(), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 }
 

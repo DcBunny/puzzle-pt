@@ -6,12 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.puzzle_pt.data.LessonInteraction
 import com.example.puzzle_pt.data.LessonRepository
+import com.example.puzzle_pt.data.LessonStep
 import com.example.puzzle_pt.data.ProgressStore
 import com.example.puzzle_pt.engine.SudokuRules
 import com.example.puzzle_pt.model.CELL_COUNT
@@ -45,6 +46,7 @@ import com.example.puzzle_pt.ui.components.AppTopBar
 import com.example.puzzle_pt.ui.components.LessonVisual
 import com.example.puzzle_pt.ui.components.SudokuBoard
 import com.example.puzzle_pt.ui.components.rememberChineseSpeaker
+import com.example.puzzle_pt.ui.isTabletLandscape
 
 @Composable
 fun LessonScreen(
@@ -87,146 +89,290 @@ fun LessonScreen(
         speechMessage = ""
     }
 
+    fun enterLessonNumber(value: Int) {
+        when {
+            selectedIndex != targetIndex -> feedback = "先点那个发光的小空格。"
+            value == guidedPuzzle.solution[targetIndex] -> {
+                finalEntry = value
+                feedback = "填对啦！"
+            }
+            else -> feedback = childFriendlyHint(type, guidedPuzzle, targetIndex, value)
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
         AppTopBar("${type.title} · 小课堂", onBack = onBack)
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            LessonDots(steps.size, stepIndex)
-            Text(
-                text = "第 ${stepIndex + 1} 步 / 共 ${steps.size} 步",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Text(
-                text = step.title,
-                fontSize = 27.sp,
-                lineHeight = 34.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Text(
-                text = step.explanation,
-                fontSize = 20.sp,
-                lineHeight = 29.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            if (step.action.isNotEmpty()) {
-                Text(
-                    text = step.action,
-                    fontSize = 20.sp,
-                    lineHeight = 29.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
+        if (isTabletLandscape()) {
             Row(
-                modifier = Modifier.padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize().padding(24.dp).testTag("lesson_landscape"),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                TextButton(
-                    onClick = {
+                Column(
+                    modifier = Modifier.weight(0.85f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                ) {
+                    LessonTextContent(
+                        step = step,
+                        stepIndex = stepIndex,
+                        stepCount = steps.size,
+                        isFinalStep = isFinalStep,
+                        speechMessage = speechMessage,
+                        centerText = false,
+                        onListen = {
+                            val text = "${step.title}。${step.explanation}${step.action}"
+                            speechMessage = if (speaker.speak(text)) "" else "这台设备暂时不能朗读，我们还可以一起看图。"
+                        },
+                        onReplay = { replayKey++ },
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    LessonNavigation(
+                        stepIndex = stepIndex,
+                        isFinalStep = isFinalStep,
+                        canAdvance = canAdvance,
+                        finalComplete = finalComplete,
+                        alreadyComplete = alreadyComplete,
+                        onMove = ::moveTo,
+                        onPractice = onPractice,
+                    )
+                    Spacer(Modifier.height(24.dp))
+                }
+                Column(
+                    modifier = Modifier.weight(1.15f).fillMaxHeight().verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    LessonInteractionContent(
+                        isFinalStep = isFinalStep,
+                        guidedPuzzle = guidedPuzzle,
+                        examplePuzzle = examplePuzzle,
+                        board = board,
+                        selectedIndex = selectedIndex,
+                        targetIndex = targetIndex,
+                        finalComplete = finalComplete,
+                        feedback = feedback,
+                        step = step,
+                        stepIndex = stepIndex,
+                        completedSteps = completedSteps,
+                        replayKey = replayKey,
+                        onCellSelected = { selectedIndex = it },
+                        onNumber = ::enterLessonNumber,
+                        onSolved = { completedSteps = completedSteps + stepIndex },
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                LessonTextContent(
+                    step = step,
+                    stepIndex = stepIndex,
+                    stepCount = steps.size,
+                    isFinalStep = isFinalStep,
+                    speechMessage = speechMessage,
+                    centerText = true,
+                    onListen = {
                         val text = "${step.title}。${step.explanation}${step.action}"
                         speechMessage = if (speaker.speak(text)) "" else "这台设备暂时不能朗读，我们还可以一起看图。"
                     },
-                    modifier = Modifier.testTag("listen_button"),
-                ) { Text("听一听", fontSize = 18.sp) }
-                if (!isFinalStep) {
-                    TextButton(
-                        onClick = { replayKey++ },
-                        modifier = Modifier.testTag("replay_lesson"),
-                    ) { Text("再看一遍", fontSize = 18.sp) }
-                }
-            }
-            if (speechMessage.isNotEmpty()) {
-                Text(speechMessage, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (isFinalStep) {
-                val selectedHighlights = selectedIndex?.let { SudokuRules.relatedCells(it, type) }.orEmpty()
-                SudokuBoard(
-                    puzzle = guidedPuzzle,
+                    onReplay = { replayKey++ },
+                )
+                LessonInteractionContent(
+                    isFinalStep = isFinalStep,
+                    guidedPuzzle = guidedPuzzle,
+                    examplePuzzle = examplePuzzle,
                     board = board,
-                    notes = List(CELL_COUNT) { emptySet() },
                     selectedIndex = selectedIndex,
-                    conflictCells = SudokuRules.conflictingCells(board, guidedPuzzle),
-                    highlightCells = selectedHighlights + targetIndex,
-                    onCellSelected = { selectedIndex = it },
-                )
-                Text(
-                    text = if (finalComplete) "你记住了这条规则，真棒！" else feedback,
-                    fontSize = 19.sp,
-                    color = if (finalComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(vertical = 10.dp).testTag("lesson_feedback"),
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (value in 1..6) {
-                        Button(
-                            onClick = {
-                                when {
-                                    selectedIndex != targetIndex -> feedback = "先点那个发光的小空格。"
-                                    value == guidedPuzzle.solution[targetIndex] -> {
-                                        finalEntry = value
-                                        feedback = "填对啦！"
-                                    }
-                                    else -> feedback = childFriendlyHint(type, guidedPuzzle, targetIndex, value)
-                                }
-                            },
-                            enabled = !finalComplete,
-                            modifier = Modifier.weight(1f).testTag("lesson_number_$value"),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                        ) { Text(value.toString(), fontSize = 20.sp) }
-                    }
-                }
-            } else {
-                LessonVisual(
+                    targetIndex = targetIndex,
+                    finalComplete = finalComplete,
+                    feedback = feedback,
                     step = step,
-                    puzzle = examplePuzzle,
+                    stepIndex = stepIndex,
+                    completedSteps = completedSteps,
                     replayKey = replayKey,
+                    onCellSelected = { selectedIndex = it },
+                    onNumber = ::enterLessonNumber,
                     onSolved = { completedSteps = completedSteps + stepIndex },
                 )
-                if (stepIndex in completedSteps) {
-                    Text(
-                        "做到了！可以进入下一步。",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        modifier = Modifier.padding(top = 4.dp).testTag("interaction_complete"),
-                    )
+                Spacer(Modifier.height(12.dp))
+                LessonNavigation(
+                    stepIndex = stepIndex,
+                    isFinalStep = isFinalStep,
+                    canAdvance = canAdvance,
+                    finalComplete = finalComplete,
+                    alreadyComplete = alreadyComplete,
+                    onMove = ::moveTo,
+                    onPractice = onPractice,
+                )
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LessonTextContent(
+    step: LessonStep,
+    stepIndex: Int,
+    stepCount: Int,
+    isFinalStep: Boolean,
+    speechMessage: String,
+    centerText: Boolean,
+    onListen: () -> Unit,
+    onReplay: () -> Unit,
+) {
+    val textAlign = if (centerText) TextAlign.Center else TextAlign.Start
+    val textModifier = if (centerText) Modifier else Modifier.fillMaxWidth()
+    Column(horizontalAlignment = if (centerText) Alignment.CenterHorizontally else Alignment.Start) {
+        LessonDots(stepCount, stepIndex)
+        Text(
+            text = "第 ${stepIndex + 1} 步 / 共 $stepCount 步",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            text = step.title,
+            fontSize = 27.sp,
+            lineHeight = 34.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = textAlign,
+            modifier = textModifier.padding(top = 8.dp),
+        )
+        Text(
+            text = step.explanation,
+            fontSize = 20.sp,
+            lineHeight = 29.sp,
+            textAlign = textAlign,
+            modifier = textModifier.padding(top = 8.dp),
+        )
+        if (step.action.isNotEmpty()) {
+            Text(
+                text = step.action,
+                fontSize = 20.sp,
+                lineHeight = 29.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = textAlign,
+                modifier = textModifier.padding(top = 2.dp),
+            )
+        }
+        Row(
+            modifier = Modifier.padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextButton(onClick = onListen, modifier = Modifier.testTag("listen_button")) {
+                Text("听一听", fontSize = 18.sp)
+            }
+            if (!isFinalStep) {
+                TextButton(onClick = onReplay, modifier = Modifier.testTag("replay_lesson")) {
+                    Text("再看一遍", fontSize = 18.sp)
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (stepIndex > 0) {
-                    OutlinedButton(
-                        onClick = { moveTo(stepIndex - 1) },
-                        modifier = Modifier.weight(1f),
-                    ) { Text("再看前一页", fontSize = 17.sp) }
-                }
-                if (!isFinalStep) {
-                    Button(
-                        onClick = { moveTo(stepIndex + 1) },
-                        enabled = canAdvance,
-                        modifier = Modifier.weight(1f).testTag("lesson_next"),
-                    ) { Text(if (canAdvance) "我会啦，继续" else "先试一试上图", fontSize = 17.sp) }
-                } else {
-                    Button(
-                        onClick = onPractice,
-                        enabled = finalComplete || alreadyComplete,
-                        modifier = Modifier.weight(1f).testTag("lesson_practice"),
-                    ) { Text("我会了，去练习", fontSize = 17.sp) }
-                }
+        }
+        if (speechMessage.isNotEmpty()) {
+            Text(speechMessage, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun LessonInteractionContent(
+    isFinalStep: Boolean,
+    guidedPuzzle: SudokuPuzzle,
+    examplePuzzle: SudokuPuzzle,
+    board: List<Int>,
+    selectedIndex: Int?,
+    targetIndex: Int,
+    finalComplete: Boolean,
+    feedback: String,
+    step: LessonStep,
+    stepIndex: Int,
+    completedSteps: Set<Int>,
+    replayKey: Int,
+    onCellSelected: (Int) -> Unit,
+    onNumber: (Int) -> Unit,
+    onSolved: () -> Unit,
+) {
+    if (isFinalStep) {
+        val selectedHighlights = selectedIndex?.let { SudokuRules.relatedCells(it, guidedPuzzle) }.orEmpty()
+        SudokuBoard(
+            puzzle = guidedPuzzle,
+            board = board,
+            notes = List(CELL_COUNT) { emptySet() },
+            selectedIndex = selectedIndex,
+            conflictCells = SudokuRules.conflictingCells(board, guidedPuzzle),
+            highlightCells = selectedHighlights + targetIndex,
+            onCellSelected = onCellSelected,
+        )
+        Text(
+            text = if (finalComplete) "你记住了这条规则，真棒！" else feedback,
+            fontSize = 19.sp,
+            color = if (finalComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(vertical = 10.dp).testTag("lesson_feedback"),
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for (value in 1..6) {
+                Button(
+                    onClick = { onNumber(value) },
+                    enabled = !finalComplete,
+                    modifier = Modifier.weight(1f).testTag("lesson_number_$value"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                ) { Text(value.toString(), fontSize = 20.sp) }
             }
-            Spacer(Modifier.height(24.dp))
+        }
+    } else {
+        LessonVisual(
+            step = step,
+            puzzle = examplePuzzle,
+            replayKey = replayKey,
+            onSolved = onSolved,
+        )
+        if (stepIndex in completedSteps) {
+            Text(
+                "做到了！可以进入下一步。",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(top = 4.dp).testTag("interaction_complete"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LessonNavigation(
+    stepIndex: Int,
+    isFinalStep: Boolean,
+    canAdvance: Boolean,
+    finalComplete: Boolean,
+    alreadyComplete: Boolean,
+    onMove: (Int) -> Unit,
+    onPractice: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (stepIndex > 0) {
+            OutlinedButton(
+                onClick = { onMove(stepIndex - 1) },
+                modifier = Modifier.weight(1f),
+            ) { Text("再看前一页", fontSize = 17.sp) }
+        }
+        if (!isFinalStep) {
+            Button(
+                onClick = { onMove(stepIndex + 1) },
+                enabled = canAdvance,
+                modifier = Modifier.weight(1f).testTag("lesson_next"),
+            ) { Text(if (canAdvance) "我会啦，继续" else "先试一试上图", fontSize = 17.sp) }
+        } else {
+            Button(
+                onClick = onPractice,
+                enabled = finalComplete || alreadyComplete,
+                modifier = Modifier.weight(1f).testTag("lesson_practice"),
+            ) { Text("我会了，去练习", fontSize = 17.sp) }
         }
     }
 }
@@ -259,4 +405,5 @@ private fun childFriendlyHint(
     SudokuType.SKYSCRAPER -> "从箭头方向数一数，看到的楼数要和外面的线索一样。"
     SudokuType.DIAGONAL -> "除了行、列和宫，也检查对角线上有没有重复的 $value。"
     SudokuType.ANTI_KNIGHT -> "看看马步落点，走两格再拐一格的两格不能填相同数字。"
+    SudokuType.SEVEN, SudokuType.NINE -> "行、列和宫里都不能有重复数字，看看还缺哪个数字。"
 }

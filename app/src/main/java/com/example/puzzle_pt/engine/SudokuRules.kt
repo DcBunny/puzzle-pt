@@ -1,52 +1,34 @@
 package com.example.puzzle_pt.engine
 
-import com.example.puzzle_pt.model.CELL_COUNT
-import com.example.puzzle_pt.model.SUDOKU_SIZE
 import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
 
 object SudokuRules {
-    private val rowGroups = List(SUDOKU_SIZE) { row ->
-        List(SUDOKU_SIZE) { column -> row * SUDOKU_SIZE + column }
-    }
-    private val columnGroups = List(SUDOKU_SIZE) { column ->
-        List(SUDOKU_SIZE) { row -> row * SUDOKU_SIZE + column }
-    }
-    private val boxGroups = List(SUDOKU_SIZE) { box ->
-        val startRow = (box / 2) * 2
-        val startColumn = (box % 2) * 3
-        List(SUDOKU_SIZE) { offset ->
-            (startRow + offset / 3) * SUDOKU_SIZE + startColumn + offset % 3
+    fun relatedCells(index: Int, puzzle: SudokuPuzzle): Set<Int> {
+        val size = puzzle.size
+        val row = index / size
+        val column = index % size
+        val related = rowIndices(row, size).toMutableSet()
+        related += columnIndices(column, size)
+        related += boxGroups(puzzle).first { index in it }
+        if (puzzle.type == SudokuType.DIAGONAL) {
+            if (index in mainDiagonal(size)) related += mainDiagonal(size)
+            if (index in antiDiagonal(size)) related += antiDiagonal(size)
         }
-    }
-    private val mainDiagonal = List(SUDOKU_SIZE) { it * SUDOKU_SIZE + it }
-    private val antiDiagonal = List(SUDOKU_SIZE) { it * SUDOKU_SIZE + (SUDOKU_SIZE - 1 - it) }
-    private val baseGroups = rowGroups + columnGroups + boxGroups
-
-    fun relatedCells(index: Int, type: SudokuType): Set<Int> {
-        val row = index / SUDOKU_SIZE
-        val column = index % SUDOKU_SIZE
-        val related = baseGroups.first { row * SUDOKU_SIZE + column in it }.toMutableSet()
-        related += columnGroups[column]
-        related += boxGroups[(row / 2) * 2 + column / 3]
-        if (type == SudokuType.DIAGONAL) {
-            if (index in mainDiagonal) related += mainDiagonal
-            if (index in antiDiagonal) related += antiDiagonal
-        }
-        if (type == SudokuType.ANTI_KNIGHT) related += knightCells(index)
+        if (puzzle.type == SudokuType.ANTI_KNIGHT) related += knightCells(index, size)
         related -= index
         return related
     }
 
-    fun knightCells(index: Int): Set<Int> {
-        val row = index / SUDOKU_SIZE
-        val column = index % SUDOKU_SIZE
+    fun knightCells(index: Int, size: Int = 6): Set<Int> {
+        val row = index / size
+        val column = index % size
         val moves = listOf(-2 to -1, -2 to 1, -1 to -2, -1 to 2, 1 to -2, 1 to 2, 2 to -1, 2 to 1)
         return moves.mapNotNull { (rowDelta, columnDelta) ->
             val targetRow = row + rowDelta
             val targetColumn = column + columnDelta
-            if (targetRow in 0 until SUDOKU_SIZE && targetColumn in 0 until SUDOKU_SIZE) {
-                targetRow * SUDOKU_SIZE + targetColumn
+            if (targetRow in 0 until size && targetColumn in 0 until size) {
+                targetRow * size + targetColumn
             } else {
                 null
             }
@@ -54,21 +36,23 @@ object SudokuRules {
     }
 
     fun conflictingCells(board: List<Int>, puzzle: SudokuPuzzle): BooleanArray {
-        require(board.size == CELL_COUNT)
-        val conflicts = BooleanArray(CELL_COUNT)
+        require(board.size == puzzle.cellCount)
+        val conflicts = BooleanArray(puzzle.cellCount)
         val groups = buildList {
-            addAll(baseGroups)
+            for (row in 0 until puzzle.size) add(rowIndices(row, puzzle.size))
+            for (column in 0 until puzzle.size) add(columnIndices(column, puzzle.size))
+            addAll(boxGroups(puzzle))
             if (puzzle.type == SudokuType.DIAGONAL) {
-                add(mainDiagonal)
-                add(antiDiagonal)
+                add(mainDiagonal(puzzle.size))
+                add(antiDiagonal(puzzle.size))
             }
         }
         groups.forEach { group -> markDuplicates(board, group, conflicts) }
 
         if (puzzle.type == SudokuType.ANTI_KNIGHT) {
-            for (index in 0 until CELL_COUNT) {
+            for (index in 0 until puzzle.cellCount) {
                 if (board[index] == 0) continue
-                knightCells(index).filter { it > index }.forEach { other ->
+                knightCells(index, puzzle.size).filter { it > index }.forEach { other ->
                     if (board[other] == board[index]) {
                         conflicts[index] = true
                         conflicts[other] = true
@@ -90,7 +74,7 @@ object SudokuRules {
         }
 
         if (puzzle.type == SudokuType.SKYSCRAPER) {
-            skyscraperLines().forEachIndexed { clueIndex, line ->
+            skyscraperLines(puzzle.size).forEachIndexed { clueIndex, line ->
                 val clue = puzzle.skyscraperClues[clueIndex]
                 if (clue > 0 && line.all { board[it] != 0 }) {
                     val values = line.map { board[it] }
@@ -104,12 +88,12 @@ object SudokuRules {
     }
 
     fun isComplete(board: List<Int>, puzzle: SudokuPuzzle): Boolean =
-        board.all { it in 1..6 } && conflictingCells(board, puzzle).none { it }
+        board.all { it in 1..puzzle.size } && conflictingCells(board, puzzle).none { it }
 
     fun candidates(board: IntArray, index: Int, puzzle: SudokuPuzzle): List<Int> {
         if (board[index] != 0) return emptyList()
         val working = board.copyOf()
-        return (1..6).filter { value ->
+        return (1..puzzle.size).filter { value ->
             working[index] = value
             val valid = !conflictingCells(working.toList(), puzzle)[index]
             working[index] = 0
@@ -129,18 +113,49 @@ object SudokuRules {
         return visible
     }
 
-    fun skyscraperLines(): List<List<Int>> = buildList {
-        for (column in 0 until SUDOKU_SIZE) {
-            add(List(SUDOKU_SIZE) { row -> row * SUDOKU_SIZE + column })
+    fun skyscraperLines(size: Int = 6): List<List<Int>> = buildList {
+        for (column in 0 until size) {
+            add(columnIndices(column, size))
         }
-        for (row in 0 until SUDOKU_SIZE) {
-            add(List(SUDOKU_SIZE) { offset -> row * SUDOKU_SIZE + (SUDOKU_SIZE - 1 - offset) })
+        for (row in 0 until size) {
+            add(List(size) { offset -> row * size + (size - 1 - offset) })
         }
-        for (column in 0 until SUDOKU_SIZE) {
-            add(List(SUDOKU_SIZE) { offset -> (SUDOKU_SIZE - 1 - offset) * SUDOKU_SIZE + column })
+        for (column in 0 until size) {
+            add(List(size) { offset -> (size - 1 - offset) * size + column })
         }
-        for (row in 0 until SUDOKU_SIZE) {
-            add(List(SUDOKU_SIZE) { column -> row * SUDOKU_SIZE + column })
+        for (row in 0 until size) {
+            add(rowIndices(row, size))
+        }
+    }
+
+    private fun rowIndices(row: Int, size: Int): List<Int> =
+        List(size) { column -> row * size + column }
+
+    private fun columnIndices(column: Int, size: Int): List<Int> =
+        List(size) { row -> row * size + column }
+
+    private fun mainDiagonal(size: Int): List<Int> = List(size) { it * size + it }
+
+    private fun antiDiagonal(size: Int): List<Int> = List(size) { it * size + (size - 1 - it) }
+
+    private fun boxGroups(puzzle: SudokuPuzzle): List<List<Int>> {
+        if (puzzle.regions.isNotEmpty()) {
+            return List(puzzle.size) { region ->
+                puzzle.regions.indices.filter { puzzle.regions[it] == region }
+            }
+        }
+        val (boxHeight, boxWidth) = when (puzzle.size) {
+            6 -> 2 to 3
+            9 -> 3 to 3
+            else -> error("该尺寸必须提供宫区划分")
+        }
+        val boxesAcross = puzzle.size / boxWidth
+        return List(puzzle.size) { box ->
+            val startRow = (box / boxesAcross) * boxHeight
+            val startColumn = (box % boxesAcross) * boxWidth
+            List(puzzle.size) { offset ->
+                (startRow + offset / boxWidth) * puzzle.size + startColumn + offset % boxWidth
+            }
         }
     }
 

@@ -49,7 +49,7 @@ data class LessonStep(
 
 object LessonRepository {
     fun stepsFor(type: SudokuType): List<LessonStep> {
-        if (type == SudokuType.STANDARD) return emptyList()
+        if (!type.hasLesson) return emptyList()
         val steps = when (type) {
             SudokuType.STANDARD -> emptyList()
             SudokuType.KILLER -> listOf(
@@ -95,6 +95,7 @@ object LessonRepository {
                     LessonInteraction.CHOOSE_SAFE_KNIGHT_NUMBER,
                 ),
             )
+            SudokuType.SEVEN, SudokuType.NINE -> emptyList()
         }
         return steps + LessonStep(
             "你来试一试",
@@ -104,6 +105,7 @@ object LessonRepository {
                 SudokuType.SKYSCRAPER -> "从箭头方向数一数，看到的楼数要和外面的线索一样。"
                 SudokuType.DIAGONAL -> "除了行、列和宫，也看看对角线还缺哪个数字。"
                 SudokuType.ANTI_KNIGHT -> "除了行、列和宫，也看看马步落点，不能填相同数字。"
+                SudokuType.SEVEN, SudokuType.NINE -> ""
             },
             "给发光的小格填上正确的数字。",
             LessonVisualKind.NUMBER_FRIENDS,

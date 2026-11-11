@@ -2,7 +2,7 @@ package com.example.puzzle_pt.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -54,7 +54,7 @@ fun SudokuApp() {
     BackHandler(enabled = screen !is Screen.Home, onBack = ::goBack)
 
     Surface(
-        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        modifier = Modifier.fillMaxSize().safeDrawingPadding(),
         color = MaterialTheme.colorScheme.background,
     ) {
         when (val current = screen) {

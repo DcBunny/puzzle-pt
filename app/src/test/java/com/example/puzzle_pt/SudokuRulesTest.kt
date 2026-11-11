@@ -4,7 +4,6 @@ import com.example.puzzle_pt.data.PuzzleRepository
 import com.example.puzzle_pt.engine.SudokuRules
 import com.example.puzzle_pt.engine.SudokuSolver
 import com.example.puzzle_pt.model.Difficulty
-import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,8 +13,8 @@ import org.junit.Test
 class SudokuRulesTest {
     @Test
     fun allBuiltInPuzzlesHaveValidUniqueSolutions() {
-        assertEquals(75, PuzzleRepository.puzzles.size)
-        assertEquals(75, PuzzleRepository.puzzles.map { it.id }.distinct().size)
+        assertEquals(105, PuzzleRepository.puzzles.size)
+        assertEquals(105, PuzzleRepository.puzzles.map { it.id }.distinct().size)
         PuzzleRepository.puzzles.forEach { puzzle ->
             assertTrue(puzzle.id, SudokuRules.isComplete(puzzle.solution, puzzle))
             assertEquals(puzzle.id, puzzle.solution, SudokuSolver.solve(puzzle))
@@ -81,6 +80,40 @@ class SudokuRulesTest {
         val wrongClues = puzzle.skyscraperClues.toMutableList().apply { this[0] = 1 }
         val wrongPuzzle = puzzle.copy(skyscraperClues = wrongClues)
         assertFalse(SudokuRules.isComplete(puzzle.solution, wrongPuzzle))
+    }
+
+    @Test
+    fun sevenGridUsesIrregularRegions() {
+        val puzzle = PuzzleRepository.puzzleById("seven-easy")
+        val board = MutableList(puzzle.cellCount) { 0 }
+        board[0] = 1
+        board[8] = 1
+        val conflicts = SudokuRules.conflictingCells(board, puzzle)
+        assertTrue(conflicts[0])
+        assertTrue(conflicts[8])
+        assertTrue(8 in SudokuRules.relatedCells(0, puzzle))
+        assertFalse(13 in SudokuRules.relatedCells(0, puzzle))
+    }
+
+    @Test
+    fun nineGridUsesThreeByThreeBoxes() {
+        val puzzle = PuzzleRepository.puzzleById("nine-easy")
+        val board = MutableList(puzzle.cellCount) { 0 }
+        board[0] = 1
+        board[10] = 1
+        val conflicts = SudokuRules.conflictingCells(board, puzzle)
+        assertTrue(conflicts[0])
+        assertTrue(conflicts[10])
+        assertTrue(10 in SudokuRules.relatedCells(0, puzzle))
+        assertFalse(30 in SudokuRules.relatedCells(0, puzzle))
+    }
+
+    @Test
+    fun candidatesUseThePuzzleSize() {
+        val seven = PuzzleRepository.puzzleById("seven-easy")
+        val nine = PuzzleRepository.puzzleById("nine-easy")
+        assertEquals((1..7).toList(), SudokuRules.candidates(IntArray(49), 0, seven))
+        assertEquals((1..9).toList(), SudokuRules.candidates(IntArray(81), 0, nine))
     }
 
     @Test

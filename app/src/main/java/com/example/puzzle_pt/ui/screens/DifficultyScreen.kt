@@ -2,11 +2,16 @@ package com.example.puzzle_pt.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,6 +27,7 @@ import com.example.puzzle_pt.data.PuzzleRepository
 import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.SudokuType
 import com.example.puzzle_pt.ui.components.AppTopBar
+import com.example.puzzle_pt.ui.isTabletLandscape
 
 @Composable
 fun DifficultyScreen(
@@ -31,47 +37,74 @@ fun DifficultyScreen(
 ) {
     Column(Modifier.fillMaxSize()) {
         AppTopBar("${type.title}练习", onBack = onBack)
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        if (isTabletLandscape()) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item(span = { GridItemSpan(maxLineSpan) }) { DifficultyTitle() }
+                items(Difficulty.entries) { difficulty ->
+                    DifficultyCard(type, difficulty, onSelect)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item { DifficultyTitle() }
+                items(Difficulty.entries) { difficulty ->
+                    DifficultyCard(type, difficulty, onSelect)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DifficultyTitle() {
+    Text(
+        text = "选择难度",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun DifficultyCard(
+    type: SudokuType,
+    difficulty: Difficulty,
+    onSelect: (Difficulty) -> Unit,
+) {
+    val count = PuzzleRepository.puzzlesOf(type).count { it.difficulty == difficulty }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            item {
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text = "选择难度",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = difficulty.title,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                Text(
+                    text = "共 $count 道题",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            items(Difficulty.entries) { difficulty ->
-                val count = PuzzleRepository.puzzlesOf(type).count { it.difficulty == difficulty }
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                text = difficulty.title,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = "共 $count 道题",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                        Button(
-                            onClick = { onSelect(difficulty) },
-                            modifier = Modifier.testTag("difficulty_${type.name}_${difficulty.name}"),
-                        ) {
-                            Text("选择")
-                        }
-                    }
-                }
+            Button(
+                onClick = { onSelect(difficulty) },
+                modifier = Modifier.testTag("difficulty_${type.name}_${difficulty.name}"),
+            ) {
+                Text("选择")
             }
         }
     }

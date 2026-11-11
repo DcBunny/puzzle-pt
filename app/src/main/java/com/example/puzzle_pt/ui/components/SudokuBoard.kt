@@ -33,8 +33,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.puzzle_pt.engine.SudokuRules
-import com.example.puzzle_pt.model.CELL_COUNT
-import com.example.puzzle_pt.model.SUDOKU_SIZE
 import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
 
@@ -68,7 +66,7 @@ fun SudokuBoard(
                 onCellSelected = onCellSelected,
                 modifier = Modifier.size(boardSize).align(Alignment.Center),
             )
-            SkyscraperClues(puzzle.skyscraperClues, boardSize, edge)
+            SkyscraperClues(puzzle.skyscraperClues, boardSize, edge, puzzle.size)
         }
     } else {
         BoardGrid(
@@ -100,15 +98,16 @@ private fun BoardGrid(
     modifier: Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
-    val related = selectedIndex?.let { SudokuRules.relatedCells(it, puzzle.type) }.orEmpty()
+    val size = puzzle.size
+    val related = selectedIndex?.let { SudokuRules.relatedCells(it, puzzle) }.orEmpty()
     val selectedValue = selectedIndex?.let { board[it] } ?: 0
     Box(modifier) {
         Column(Modifier.fillMaxSize()) {
-            for (row in 0 until SUDOKU_SIZE) {
+            for (row in 0 until size) {
                 Row(Modifier.weight(1f).fillMaxWidth()) {
-                    for (column in 0 until SUDOKU_SIZE) {
-                        val index = row * SUDOKU_SIZE + column
-                        val isDiagonal = puzzle.type == SudokuType.DIAGONAL && (row == column || row + column == 5)
+                    for (column in 0 until size) {
+                        val index = row * size + column
+                        val isDiagonal = puzzle.type == SudokuType.DIAGONAL && (row == column || row + column == size - 1)
                         val background = when {
                             selectedIndex == index -> colors.primaryContainer
                             conflictCells[index] -> colors.errorContainer
@@ -135,7 +134,7 @@ private fun BoardGrid(
                             when {
                                 board[index] != 0 -> Text(
                                     text = board[index].toString(),
-                                    fontSize = 24.sp,
+                                    fontSize = if (size == 9) 20.sp else 24.sp,
                                     fontWeight = if (puzzle.givens[index] != 0) FontWeight.Bold else FontWeight.Medium,
                                     color = when {
                                         conflictCells[index] -> colors.error
@@ -146,6 +145,7 @@ private fun BoardGrid(
                                 notes[index].isNotEmpty() -> CandidateNotes(
                                     candidates = notes[index],
                                     hasCageSum = cage != null,
+                                    size = size,
                                 )
                             }
                             if (cage != null) {
@@ -174,7 +174,7 @@ private fun BoardGrid(
 }
 
 @Composable
-private fun CandidateNotes(candidates: Set<Int>, hasCageSum: Boolean) {
+private fun CandidateNotes(candidates: Set<Int>, hasCageSum: Boolean, size: Int) {
     Column(
         Modifier.fillMaxSize().padding(
             start = if (hasCageSum) 28.dp else 3.dp,
@@ -183,13 +183,13 @@ private fun CandidateNotes(candidates: Set<Int>, hasCageSum: Boolean) {
             bottom = 3.dp,
         ),
     ) {
-        for (row in 0..1) {
+        for (row in 0 until (size + 2) / 3) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 for (column in 0..2) {
                     val value = row * 3 + column + 1
                     Text(
-                        text = if (value in candidates) value.toString() else "",
-                        fontSize = 9.sp,
+                        text = if (value <= size && value in candidates) value.toString() else "",
+                        fontSize = if (size == 9) 7.sp else 9.sp,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
@@ -205,27 +205,53 @@ private fun GridLines(puzzle: SudokuPuzzle) {
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val strongColor = MaterialTheme.colorScheme.onSurface
     val cageColor = MaterialTheme.colorScheme.primary
+    val size = puzzle.size
     Canvas(Modifier.fillMaxSize()) {
-        val cellWidth = size.width / SUDOKU_SIZE
-        val cellHeight = size.height / SUDOKU_SIZE
-        for (line in 0..SUDOKU_SIZE) {
-            val strong = line == 0 || line == SUDOKU_SIZE || line == 3
+        val cellWidth = this.size.width / size
+        val cellHeight = this.size.height / size
+        for (line in 0..size) {
+            val strong = line == 0 || line == size ||
+                (size == 6 && line == 3) || (size == 9 && line % 3 == 0)
             drawLine(
                 color = if (strong) strongColor else gridColor,
                 start = Offset(line * cellWidth, 0f),
-                end = Offset(line * cellWidth, size.height),
+                end = Offset(line * cellWidth, this.size.height),
                 strokeWidth = (if (strong) 2.5.dp else 1.dp).toPx(),
             )
-            val strongRow = line == 0 || line == SUDOKU_SIZE || line % 2 == 0
+            val strongRow = line == 0 || line == size ||
+                (size == 6 && line % 2 == 0) || (size == 9 && line % 3 == 0)
             drawLine(
                 color = if (strongRow) strongColor else gridColor,
                 start = Offset(0f, line * cellHeight),
-                end = Offset(size.width, line * cellHeight),
+                end = Offset(this.size.width, line * cellHeight),
                 strokeWidth = (if (strongRow) 2.5.dp else 1.dp).toPx(),
             )
         }
+        if (puzzle.regions.isNotEmpty()) {
+            for (row in 0 until size) {
+                for (column in 0 until size) {
+                    val index = row * size + column
+                    if (column < size - 1 && puzzle.regions[index] != puzzle.regions[index + 1]) {
+                        drawLine(
+                            color = strongColor,
+                            start = Offset((column + 1) * cellWidth, row * cellHeight),
+                            end = Offset((column + 1) * cellWidth, (row + 1) * cellHeight),
+                            strokeWidth = 2.5.dp.toPx(),
+                        )
+                    }
+                    if (row < size - 1 && puzzle.regions[index] != puzzle.regions[index + size]) {
+                        drawLine(
+                            color = strongColor,
+                            start = Offset(column * cellWidth, (row + 1) * cellHeight),
+                            end = Offset((column + 1) * cellWidth, (row + 1) * cellHeight),
+                            strokeWidth = 2.5.dp.toPx(),
+                        )
+                    }
+                }
+            }
+        }
         if (puzzle.type == SudokuType.KILLER) {
-            val cageAt = IntArray(CELL_COUNT) { -1 }
+            val cageAt = IntArray(puzzle.cellCount) { -1 }
             puzzle.cages.forEachIndexed { cageIndex, cage ->
                 cage.cells.forEach { cageAt[it.index] = cageIndex }
             }
@@ -241,7 +267,7 @@ private fun GridLines(puzzle: SudokuPuzzle) {
                     val right = (column + 1) * cellWidth - cageInset
                     val top = row * cellHeight + cageInset
                     val bottom = (row + 1) * cellHeight - cageInset
-                    if (row == 0 || cageAt[index - SUDOKU_SIZE] != cageAt[index]) {
+                    if (row == 0 || cageAt[index - size] != cageAt[index]) {
                         drawLine(
                             color = cageColor,
                             start = Offset(left, top),
@@ -251,7 +277,7 @@ private fun GridLines(puzzle: SudokuPuzzle) {
                             pathEffect = dash,
                         )
                     }
-                    if (row == 5 || cageAt[index + SUDOKU_SIZE] != cageAt[index]) {
+                    if (row == size - 1 || cageAt[index + size] != cageAt[index]) {
                         drawLine(
                             color = cageColor,
                             start = Offset(left, bottom),
@@ -271,7 +297,7 @@ private fun GridLines(puzzle: SudokuPuzzle) {
                             pathEffect = dash,
                         )
                     }
-                    if (column == 5 || cageAt[index + 1] != cageAt[index]) {
+                    if (column == size - 1 || cageAt[index + 1] != cageAt[index]) {
                         drawLine(
                             color = cageColor,
                             start = Offset(right, top),
@@ -288,13 +314,13 @@ private fun GridLines(puzzle: SudokuPuzzle) {
 }
 
 @Composable
-private fun SkyscraperClues(clues: List<Int>, boardSize: Dp, edge: Dp) {
-    val cellSize = boardSize / 6
-    for (index in 0 until SUDOKU_SIZE) {
+private fun SkyscraperClues(clues: List<Int>, boardSize: Dp, edge: Dp, size: Int) {
+    val cellSize = boardSize / size
+    for (index in 0 until size) {
         ClueText(clues[index], Modifier.offset(x = edge + cellSize * index, y = 0.dp).size(cellSize, edge))
-        ClueText(clues[6 + index], Modifier.offset(x = edge + boardSize, y = edge + cellSize * index).size(edge, cellSize))
-        ClueText(clues[12 + index], Modifier.offset(x = edge + cellSize * index, y = edge + boardSize).size(cellSize, edge))
-        ClueText(clues[18 + index], Modifier.offset(x = 0.dp, y = edge + cellSize * index).size(edge, cellSize))
+        ClueText(clues[size + index], Modifier.offset(x = edge + boardSize, y = edge + cellSize * index).size(edge, cellSize))
+        ClueText(clues[size * 2 + index], Modifier.offset(x = edge + cellSize * index, y = edge + boardSize).size(cellSize, edge))
+        ClueText(clues[size * 3 + index], Modifier.offset(x = 0.dp, y = edge + cellSize * index).size(edge, cellSize))
     }
 }
 

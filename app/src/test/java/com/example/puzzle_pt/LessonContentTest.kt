@@ -10,13 +10,15 @@ import org.junit.Test
 
 class LessonContentTest {
     @Test
-    fun standardHasNoLesson() {
-        assertTrue(LessonRepository.stepsFor(SudokuType.STANDARD).isEmpty())
+    fun typesWithoutTeachingHaveNoLesson() {
+        SudokuType.entries.filterNot { it.hasLesson }.forEach { type ->
+            assertTrue(type.name, LessonRepository.stepsFor(type).isEmpty())
+        }
     }
 
     @Test
     fun everyVariantHasShortPlayableLessonsAndOneValidFinalCell() {
-        SudokuType.entries.filter { it != SudokuType.STANDARD }.forEach { type ->
+        SudokuType.entries.filter { it.hasLesson }.forEach { type ->
             val steps = LessonRepository.stepsFor(type)
             val expectedSteps = if (type == SudokuType.SKYSCRAPER) 3 else 2
             assertEquals(type.name, expectedSteps, steps.size)
@@ -29,7 +31,7 @@ class LessonContentTest {
                 SudokuType.SKYSCRAPER -> "从左边看"
                 SudokuType.DIAGONAL -> "主对角线"
                 SudokuType.ANTI_KNIGHT -> "马步落点"
-                SudokuType.STANDARD -> ""
+                SudokuType.STANDARD, SudokuType.SEVEN, SudokuType.NINE -> ""
             }
             assertTrue(type.name, ruleStep.action.contains(expectedPrompt))
             if (type == SudokuType.SKYSCRAPER) {

@@ -35,16 +35,16 @@ class ExampleInstrumentedTest {
 
     @Test
     fun homeOffersVariantTeachingAndPracticeForAllTypes() {
-        composeRule.onNodeWithText("六宫数独学院").assertIsDisplayed()
-        composeRule.onNodeWithText("已完成 0/4 课  ·  0/15 题").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("数独学院").assertIsDisplayed()
+        composeRule.onNodeWithText("已完成 0/4 课  ·  0/105 题").performScrollTo().assertIsDisplayed()
         SudokuType.entries.forEach { type ->
             scrollHomeTo("practice_${type.name}")
             composeRule.onNodeWithTag("practice_${type.name}").assertIsDisplayed()
-            if (type == SudokuType.STANDARD) {
-                composeRule.onNodeWithTag("lesson_${type.name}").assertDoesNotExist()
-            } else {
+            if (type.hasLesson) {
                 scrollHomeTo("lesson_${type.name}")
                 composeRule.onNodeWithTag("lesson_${type.name}").assertIsDisplayed()
+            } else {
+                composeRule.onNodeWithTag("lesson_${type.name}").assertDoesNotExist()
             }
         }
     }
@@ -54,8 +54,10 @@ class ExampleInstrumentedTest {
         SudokuType.entries.forEach { type ->
             scrollHomeTo("practice_${type.name}")
             click("practice_${type.name}")
+            click("difficulty_${type.name}_EASY")
             click(easyPuzzleTag(type))
             composeRule.onNodeWithTag("sudoku_board").assertIsDisplayed()
+            click("back_button")
             click("back_button")
             click("back_button")
         }
@@ -63,7 +65,7 @@ class ExampleInstrumentedTest {
 
     @Test
     fun everyVariantLessonIncludesChildFriendlyInteraction() {
-        SudokuType.entries.filter { it != SudokuType.STANDARD }.forEach { type ->
+        SudokuType.entries.filter { it.hasLesson }.forEach { type ->
             scrollHomeTo("lesson_${type.name}")
             click("lesson_${type.name}")
             composeRule.onNodeWithTag("listen_button").assertIsDisplayed()
@@ -73,6 +75,7 @@ class ExampleInstrumentedTest {
                 SudokuType.SKYSCRAPER -> completeSkyscraperLesson()
                 SudokuType.DIAGONAL -> completeDiagonalLesson()
                 SudokuType.ANTI_KNIGHT -> completeKnightLesson()
+                SudokuType.SEVEN, SudokuType.NINE -> error("七宫格和九宫格没有教学")
             }
             val guidedPuzzle = LessonRepository.guidedPuzzle(type)
             val target = LessonRepository.guidedTargetIndex(type)
@@ -83,7 +86,9 @@ class ExampleInstrumentedTest {
             click("lesson_number_$answer")
             composeRule.onNodeWithTag("lesson_practice").performScrollTo().assertIsEnabled()
             click("lesson_practice")
+            click("difficulty_${type.name}_EASY")
             composeRule.onNodeWithTag(easyPuzzleTag(type)).assertExists()
+            click("back_button")
             click("back_button")
         }
     }
@@ -103,6 +108,28 @@ class ExampleInstrumentedTest {
         click("back_button")
         click("start_standard-easy")
         composeRule.onNodeWithTag("cell_2").assertTextEquals("1")
+    }
+
+    @Test
+    fun sevenAndNineGridsRestoreEnteredNumbers() {
+        listOf(SudokuType.SEVEN, SudokuType.NINE).forEach { type ->
+            scrollHomeTo("practice_${type.name}")
+            click("practice_${type.name}")
+            click("difficulty_${type.name}_EASY")
+            click(easyPuzzleTag(type))
+            val puzzle = PuzzleRepository.puzzlesOf(type).first { it.difficulty.title == "入门" }
+            val target = puzzle.givens.indexOf(0)
+            val answer = puzzle.solution[target]
+            click("cell_$target")
+            click("number_$answer")
+            composeRule.onNodeWithTag("cell_$target").assertTextEquals(answer.toString())
+            click("back_button")
+            click(easyPuzzleTag(type))
+            composeRule.onNodeWithTag("cell_$target").assertTextEquals(answer.toString())
+            click("back_button")
+            click("back_button")
+            click("back_button")
+        }
     }
 
     @Test
@@ -164,6 +191,7 @@ class ExampleInstrumentedTest {
     private fun openStandardPractice() {
         scrollHomeTo("practice_STANDARD")
         click("practice_STANDARD")
+        click("difficulty_STANDARD_EASY")
         click("start_standard-easy")
     }
 

@@ -1,7 +1,7 @@
 package com.example.puzzle_pt.data
 
 import android.content.Context
-import com.example.puzzle_pt.model.CELL_COUNT
+import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
 
 data class SavedGame(
@@ -43,19 +43,20 @@ class ProgressStore(context: Context) {
             .apply()
     }
 
-    fun loadGame(puzzleId: String): SavedGame? {
-        val boardValue = preferences.getString(boardKey(puzzleId), null) ?: return null
-        if (boardValue.length != CELL_COUNT || boardValue.any { it !in '0'..'6' }) return null
-        val notesValue = preferences.getString(notesKey(puzzleId), null)
+    fun loadGame(puzzle: SudokuPuzzle): SavedGame? {
+        val boardValue = preferences.getString(boardKey(puzzle.id), null) ?: return null
+        val maxDigit = '0' + puzzle.size
+        if (boardValue.length != puzzle.cellCount || boardValue.any { it !in '0'..maxDigit }) return null
+        val notesValue = preferences.getString(notesKey(puzzle.id), null)
         val masks = notesValue?.split(',')?.mapNotNull { it.toIntOrNull() }.orEmpty()
-        val notes = List(CELL_COUNT) { index ->
+        val notes = List(puzzle.cellCount) { index ->
             val mask = masks.getOrElse(index) { 0 }
-            (1..6).filter { mask and (1 shl it) != 0 }.toSet()
+            (1..puzzle.size).filter { mask and (1 shl it) != 0 }.toSet()
         }
         return SavedGame(
             board = boardValue.map { it.digitToInt() },
             notes = notes,
-            elapsedSeconds = preferences.getLong(timeKey(puzzleId), 0L),
+            elapsedSeconds = preferences.getLong(timeKey(puzzle.id), 0L),
         )
     }
 
