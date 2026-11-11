@@ -32,7 +32,14 @@ data class CellPosition(val row: Int, val column: Int) {
 data class KillerCage(
     val sum: Int,
     val cells: List<CellPosition>,
-)
+) {
+    init {
+        require(cells.isNotEmpty()) { "杀手笼不能为空" }
+    }
+
+    val labelIndex: Int
+        get() = cells.minWith(compareBy({ it.row }, { it.column })).index
+}
 
 data class SudokuPuzzle(
     val id: String,

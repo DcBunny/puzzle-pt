@@ -68,7 +68,22 @@ class PuzzleQualityTest {
             val cells = puzzle.cages.flatMap { cage -> cage.cells.map { it.index } }
             assertEquals("${puzzle.id} 笼格数量", puzzle.cellCount, cells.size)
             assertEquals("${puzzle.id} 笼格应不重不漏", (0 until puzzle.cellCount).toSet(), cells.toSet())
+            assertTrue("${puzzle.id} 笼数应为 10–14", puzzle.cages.size in 10..14)
+            assertTrue(
+                "${puzzle.id} 应至少有一个跨宫笼",
+                puzzle.cages.any { cage -> cage.cells.map { boxId(it.row, it.column) }.distinct().size > 1 },
+            )
+            assertTrue(
+                "${puzzle.id} 应至少有一个非单行笼",
+                puzzle.cages.any { cage -> cage.cells.map { it.row }.distinct().size > 1 },
+            )
             puzzle.cages.forEach { cage ->
+                assertTrue("${puzzle.id} 每笼应为 2–4 格", cage.cells.size in 2..4)
+                assertEquals(
+                    "${puzzle.id} 笼内解数字不能重复",
+                    cage.cells.size,
+                    cage.cells.map { puzzle.solution[it.index] }.distinct().size,
+                )
                 assertEquals(
                     "${puzzle.id} 笼和应与解一致",
                     cage.sum,
@@ -78,8 +93,26 @@ class PuzzleQualityTest {
                     "${puzzle.id} 每个笼应连通",
                     isConnected(cage.cells.map { it.index }, puzzle.size),
                 )
+                assertEquals(
+                    "${puzzle.id} 笼和应画在左上格",
+                    cage.cells.minWith(compareBy({ it.row }, { it.column })).index,
+                    cage.labelIndex,
+                )
             }
         }
+    }
+
+    @Test
+    fun killerCageLayoutsAreDiverse() {
+        val signatures = PuzzleRepository.puzzles
+            .filter { it.type == SudokuType.KILLER }
+            .map { puzzle ->
+                puzzle.cages
+                    .map { cage -> cage.cells.map { it.index }.sorted() }
+                    .sortedBy { it.joinToString(",") }
+            }
+            .distinct()
+        assertTrue("杀手笼布局至少应有 10 种，当前 ${signatures.size}", signatures.size >= 10)
     }
 
     @Test
@@ -126,6 +159,8 @@ class PuzzleQualityTest {
     @Test
     fun lessonCriticalValuesRemainStable() {
         val killer = PuzzleRepository.puzzleById("killer-easy")
+        assertEquals(listOf(0, 1, 2), killer.cages.first().cells.map { it.index })
+        assertEquals(0, killer.cages.first().labelIndex)
         assertEquals(10, killer.cages.first().sum)
         assertEquals(5, killer.solution[2])
 
@@ -178,6 +213,8 @@ class PuzzleQualityTest {
         }
         else -> error("未定义的棋盘尺寸 $size")
     }
+
+    private fun boxId(row: Int, column: Int): Int = (row / 2) * 2 + column / 3
 
     private fun isConnected(cells: List<Int>, size: Int): Boolean {
         if (cells.isEmpty()) return false

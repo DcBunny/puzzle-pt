@@ -127,10 +127,13 @@ private fun BoardGrid(
                             contentAlignment = Alignment.Center,
                         ) {
                             val cage = if (puzzle.type == SudokuType.KILLER) {
-                                puzzle.cages.firstOrNull { it.cells.first().index == index }
+                                puzzle.cages.firstOrNull { cage ->
+                                    cage.cells.any { it.index == index }
+                                }
                             } else {
                                 null
                             }
+                            val showCageSum = cage != null && cage.labelIndex == index
                             when {
                                 board[index] != 0 -> Text(
                                     text = board[index].toString(),
@@ -144,11 +147,11 @@ private fun BoardGrid(
                                 )
                                 notes[index].isNotEmpty() -> CandidateNotes(
                                     candidates = notes[index],
-                                    hasCageSum = cage != null,
+                                    hasCageSum = showCageSum,
                                     size = size,
                                 )
                             }
-                            if (cage != null) {
+                            if (showCageSum) {
                                 Text(
                                     text = cage.sum.toString(),
                                     fontSize = 12.sp,
