@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.puzzle_pt.data.ProgressStore
 import com.example.puzzle_pt.data.PuzzleRepository
+import com.example.puzzle_pt.engine.TeachingGuide
 import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.SudokuPuzzle
 import com.example.puzzle_pt.model.SudokuType
@@ -118,7 +119,7 @@ private fun PuzzleCard(
                     text = when {
                         completed -> "可再次挑战"
                         inProgress -> "进行中，继续上次进度"
-                        else -> "${puzzle.givens.count { it == 0 }} 个空格等待完成"
+                        else -> TeachingGuide.focusLabel(puzzle)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (completed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,

@@ -1,5 +1,6 @@
 package com.example.puzzle_pt.data
 
+import com.example.puzzle_pt.engine.TeachingGuide
 import com.example.puzzle_pt.model.CellPosition
 import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.KillerCage
@@ -108,7 +109,7 @@ object PuzzleRepository {
             ints(5, 3, 2, 6, 1, 4, 4, 1, 6, 2, 3, 5, 2, 4, 3, 1, 5, 6, 1, 6, 5, 4, 2, 3, 3, 2, 4, 5, 6, 1, 6, 5, 1, 3, 4, 2),
         ),
         puzzle(
-            "diagonal-medium", SudokuType.DIAGONAL, Difficulty.MEDIUM,
+            "diagonal-medium", SudokuType.DIAGONAL, Difficulty.HARD,
             ints(0, 0, 2, 0, 0, 1, 0, 1, 4, 2, 0, 5, 1, 0, 3, 0, 2, 0, 0, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 5, 2),
             ints(5, 3, 2, 6, 4, 1, 6, 1, 4, 2, 3, 5, 1, 4, 3, 5, 2, 6, 2, 5, 6, 4, 1, 3, 3, 2, 5, 1, 6, 4, 4, 6, 1, 3, 5, 2),
         ),
@@ -443,7 +444,7 @@ object PuzzleRepository {
             clues = ints(2, 1, 3, 3, 4, 2, 4, 1, 5, 3, 2, 2, 4, 2, 2, 2, 1, 3, 2, 4, 1, 2, 3, 3),
         ),
         puzzle(
-            "skyscraper-easy-4", SudokuType.SKYSCRAPER, Difficulty.EASY,
+            "skyscraper-easy-4", SudokuType.SKYSCRAPER, Difficulty.MEDIUM,
             ints(4, 2, 1, 0, 6, 0, 6, 3, 5, 0, 0, 0, 0, 5, 6, 4, 1, 2, 1, 0, 0, 5, 3, 6, 0, 0, 3, 0, 0, 0, 0, 1, 4, 6, 5, 3),
             ints(4, 2, 1, 3, 6, 5, 6, 3, 5, 1, 2, 4, 3, 5, 6, 4, 1, 2, 1, 4, 2, 5, 3, 6, 5, 6, 3, 2, 4, 1, 2, 1, 4, 6, 5, 3),
             clues = ints(2, 4, 3, 4, 1, 2, 2, 3, 3, 1, 3, 3, 3, 2, 2, 1, 2, 2, 2, 1, 3, 4, 2, 3),
@@ -473,7 +474,7 @@ object PuzzleRepository {
             clues = ints(3, 1, 3, 3, 2, 4, 3, 2, 3, 1, 2, 2, 3, 4, 2, 1, 3, 2, 2, 3, 1, 3, 2, 4),
         ),
         puzzle(
-            "skyscraper-medium-5", SudokuType.SKYSCRAPER, Difficulty.MEDIUM,
+            "skyscraper-medium-5", SudokuType.SKYSCRAPER, Difficulty.EASY,
             ints(1, 4, 0, 0, 0, 0, 3, 2, 5, 6, 4, 0, 0, 0, 0, 4, 1, 6, 6, 0, 4, 5, 0, 3, 0, 0, 0, 3, 0, 4, 0, 0, 0, 0, 0, 2),
             ints(1, 4, 6, 2, 3, 5, 3, 2, 5, 6, 4, 1, 5, 3, 2, 4, 1, 6, 6, 1, 4, 5, 2, 3, 2, 5, 1, 3, 6, 4, 4, 6, 3, 1, 5, 2),
             clues = ints(4, 3, 1, 2, 3, 2, 2, 3, 1, 3, 2, 3, 2, 1, 4, 4, 2, 3, 3, 3, 2, 1, 3, 2),
@@ -523,12 +524,12 @@ object PuzzleRepository {
             ints(5, 2, 6, 3, 4, 1, 3, 1, 4, 2, 5, 6, 1, 4, 3, 6, 2, 5, 6, 5, 2, 4, 1, 3, 2, 3, 5, 1, 6, 4, 4, 6, 1, 5, 3, 2),
         ),
         puzzle(
-            "diagonal-medium-2", SudokuType.DIAGONAL, Difficulty.MEDIUM,
+            "diagonal-medium-2", SudokuType.DIAGONAL, Difficulty.HARD,
             ints(0, 0, 6, 0, 0, 2, 2, 0, 1, 3, 0, 6, 0, 0, 2, 0, 0, 5, 0, 0, 0, 0, 2, 0, 0, 6, 0, 2, 0, 4, 0, 0, 0, 5, 6, 0),
             ints(5, 3, 6, 1, 4, 2, 2, 4, 1, 3, 5, 6, 6, 1, 2, 4, 3, 5, 4, 5, 3, 6, 2, 1, 3, 6, 5, 2, 1, 4, 1, 2, 4, 5, 6, 3),
         ),
         puzzle(
-            "diagonal-medium-3", SudokuType.DIAGONAL, Difficulty.MEDIUM,
+            "diagonal-medium-3", SudokuType.DIAGONAL, Difficulty.HARD,
             ints(0, 0, 0, 1, 0, 5, 0, 5, 0, 0, 0, 0, 5, 0, 4, 0, 0, 1, 3, 0, 0, 0, 5, 0, 0, 0, 0, 5, 1, 0, 0, 0, 5, 4, 2, 3),
             ints(2, 4, 3, 1, 6, 5, 1, 5, 6, 3, 4, 2, 5, 6, 4, 2, 3, 1, 3, 2, 1, 6, 5, 4, 4, 3, 2, 5, 1, 6, 6, 1, 5, 4, 2, 3),
         ),
@@ -543,7 +544,7 @@ object PuzzleRepository {
             ints(5, 3, 2, 6, 4, 1, 6, 1, 4, 2, 3, 5, 2, 4, 3, 5, 1, 6, 1, 5, 6, 4, 2, 3, 3, 2, 5, 1, 6, 4, 4, 6, 1, 3, 5, 2),
         ),
         puzzle(
-            "diagonal-hard-2", SudokuType.DIAGONAL, Difficulty.HARD,
+            "diagonal-hard-2", SudokuType.DIAGONAL, Difficulty.MEDIUM,
             ints(0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 0, 4, 2, 0, 2, 4, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 5, 0, 6, 1),
             ints(4, 3, 2, 1, 5, 6, 6, 5, 1, 2, 3, 4, 1, 6, 3, 5, 4, 2, 5, 2, 4, 6, 1, 3, 3, 1, 6, 4, 2, 5, 2, 4, 5, 3, 6, 1),
         ),
@@ -553,12 +554,12 @@ object PuzzleRepository {
             ints(1, 4, 6, 5, 2, 3, 3, 2, 5, 4, 1, 6, 6, 5, 3, 2, 4, 1, 2, 1, 4, 6, 3, 5, 4, 6, 1, 3, 5, 2, 5, 3, 2, 1, 6, 4),
         ),
         puzzle(
-            "diagonal-hard-4", SudokuType.DIAGONAL, Difficulty.HARD,
+            "diagonal-hard-4", SudokuType.DIAGONAL, Difficulty.MEDIUM,
             ints(0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 6, 0, 0, 0, 0, 0, 5, 6, 5, 3, 2, 1, 4, 0, 0, 0, 5, 6, 0, 0, 0, 0, 0, 0, 3),
             ints(5, 3, 6, 4, 2, 1, 4, 1, 2, 3, 5, 6, 1, 2, 4, 6, 3, 5, 6, 5, 3, 2, 1, 4, 3, 4, 1, 5, 6, 2, 2, 6, 5, 1, 4, 3),
         ),
         puzzle(
-            "diagonal-hard-5", SudokuType.DIAGONAL, Difficulty.HARD,
+            "diagonal-hard-5", SudokuType.DIAGONAL, Difficulty.MEDIUM,
             ints(6, 1, 4, 0, 3, 0, 5, 0, 2, 4, 0, 0, 0, 2, 5, 0, 0, 3, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0),
             ints(6, 1, 4, 2, 3, 5, 5, 3, 2, 4, 1, 6, 1, 2, 5, 6, 4, 3, 4, 6, 3, 1, 5, 2, 3, 4, 6, 5, 2, 1, 2, 5, 1, 3, 6, 4),
         ),
@@ -624,7 +625,9 @@ object PuzzleRepository {
         ),
     ) + GridPuzzleRepository.puzzles
 
-    fun puzzlesOf(type: SudokuType): List<SudokuPuzzle> = puzzles.filter { it.type == type }
+    fun puzzlesOf(type: SudokuType): List<SudokuPuzzle> =
+        puzzles.filter { it.type == type }
+            .sortedWith(compareBy({ it.difficulty.ordinal }, { TeachingGuide.pathCost(it) }, { it.id }))
 
     fun puzzleById(id: String): SudokuPuzzle = puzzles.first { it.id == id }
 

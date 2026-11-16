@@ -35,9 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.puzzle_pt.data.LessonInteraction
-import com.example.puzzle_pt.data.LessonRepository
 import com.example.puzzle_pt.data.LessonStep
 import com.example.puzzle_pt.data.ProgressStore
+import com.example.puzzle_pt.data.LessonRepository
 import com.example.puzzle_pt.engine.SudokuRules
 import com.example.puzzle_pt.model.CELL_COUNT
 import com.example.puzzle_pt.model.SudokuPuzzle
@@ -94,9 +94,14 @@ fun LessonScreen(
             selectedIndex != targetIndex -> feedback = "先点那个发光的小空格。"
             value == guidedPuzzle.solution[targetIndex] -> {
                 finalEntry = value
-                feedback = "填对啦！"
+                feedback = LessonRepository.guidedSuccess(type)
             }
-            else -> feedback = childFriendlyHint(type, guidedPuzzle, targetIndex, value)
+            else -> {
+                val trial = guidedPuzzle.givens.toMutableList()
+                trial[targetIndex] = value
+                feedback = SudokuRules.explainCell(trial, guidedPuzzle, targetIndex)
+                    ?: "再看看发光的格子，以及这一步新学的规则。"
+            }
         }
     }
 
@@ -305,7 +310,7 @@ private fun LessonInteractionContent(
             notes = List(CELL_COUNT) { emptySet() },
             selectedIndex = selectedIndex,
             conflictCells = SudokuRules.conflictingCells(board, guidedPuzzle),
-            highlightCells = selectedHighlights + targetIndex,
+            highlightCells = LessonRepository.guidedFocus(guidedPuzzle.type) + selectedHighlights + targetIndex,
             onCellSelected = onCellSelected,
         )
         Text(
@@ -392,18 +397,4 @@ private fun LessonDots(count: Int, current: Int) {
             )
         }
     }
-}
-
-private fun childFriendlyHint(
-    type: SudokuType,
-    puzzle: SudokuPuzzle,
-    targetIndex: Int,
-    value: Int,
-): String = when (type) {
-    SudokuType.STANDARD -> "行、列和宫里都不能有重复数字，看看还缺哪个数字。"
-    SudokuType.KILLER -> "看看虚线笼：数字不能重复，合起来要等于笼角的数。"
-    SudokuType.SKYSCRAPER -> "从箭头方向数一数，看到的楼数要和外面的线索一样。"
-    SudokuType.DIAGONAL -> "除了行、列和宫，也检查对角线上有没有重复的 $value。"
-    SudokuType.ANTI_KNIGHT -> "看看马步落点，走两格再拐一格的两格不能填相同数字。"
-    SudokuType.SEVEN, SudokuType.NINE -> "行、列和宫里都不能有重复数字，看看还缺哪个数字。"
 }

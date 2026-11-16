@@ -15,8 +15,8 @@ enum class SudokuType(
     SKYSCRAPER("摩天楼数独", "换个角度观察数字", "从四周观察，可见楼数必须符合线索"),
     DIAGONAL("对角线数独", "发现斜线上的规律", "两条主对角线也不能出现重复数字"),
     ANTI_KNIGHT("无马数独", "留意马步之间的格子", "马步相连的两格不能填相同数字"),
-    SEVEN("七宫格数独", "挑战不规则宫", "每行、每列、每宫都包含 1–7", size = 7, hasLesson = false),
-    NINE("九宫格数独", "挑战经典九宫格", "每行、每列、每宫都包含 1–9", size = 9, hasLesson = false),
+    SEVEN("七宫格数独", "挑战不规则宫", "每行、每列和每个连通的七格宫都是 1–7，宫形不一定是方块", size = 7, hasLesson = false),
+    NINE("九宫格数独", "挑战经典九宫格", "每行、每列和每个 3×3 宫都是 1–9", size = 9, hasLesson = false),
 }
 
 enum class Difficulty(val title: String) {
@@ -74,8 +74,38 @@ data class SudokuPuzzle(
     }
 }
 
+enum class RuleKind {
+    ROW,
+    COLUMN,
+    BOX,
+    DIAGONAL,
+    KNIGHT,
+    CAGE_DUPLICATE,
+    CAGE_SUM,
+    SKYSCRAPER,
+}
+
+data class RuleViolation(
+    val kind: RuleKind,
+    val cells: List<Int>,
+    val value: Int? = null,
+    val clue: Int? = null,
+    val expectedSum: Int? = null,
+)
+
+enum class HintKind {
+    CONFLICT,
+    UNSOLVABLE,
+    UNCERTAIN,
+    PLACE,
+    ELIMINATE,
+    NONE,
+}
+
 data class SudokuHint(
-    val index: Int,
-    val value: Int,
+    val index: Int?,
+    val value: Int?,
     val explanation: String,
+    val relatedCells: Set<Int> = emptySet(),
+    val kind: HintKind,
 )

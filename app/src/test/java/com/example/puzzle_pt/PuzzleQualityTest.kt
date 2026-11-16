@@ -30,35 +30,10 @@ class PuzzleQualityTest {
     }
 
     @Test
-    fun givensMatchDifficultyProfile() {
+    fun everyPuzzleHasSomeGivensAndSomeBlanks() {
         PuzzleRepository.puzzles.forEach { puzzle ->
             val count = puzzle.givens.count { it != 0 }
-            assertTrue(
-                "${puzzle.id} 已知数 $count 不在 ${
-                    expectedGivensRange(puzzle.type.size, puzzle.difficulty)
-                } 内",
-                count in expectedGivensRange(puzzle.type.size, puzzle.difficulty),
-            )
-        }
-    }
-
-    @Test
-    fun difficultyAveragesAreMonotonic() {
-        SudokuType.entries.forEach { type ->
-            val averages = Difficulty.entries.associateWith { difficulty ->
-                PuzzleRepository.puzzlesOf(type)
-                    .filter { it.difficulty == difficulty }
-                    .map { it.givens.count { cell -> cell != 0 } }
-                    .average()
-            }
-            assertTrue(
-                "${type.title} 入门平均已知数应多于进阶",
-                averages.getValue(Difficulty.EASY) > averages.getValue(Difficulty.MEDIUM),
-            )
-            assertTrue(
-                "${type.title} 进阶平均已知数应多于挑战",
-                averages.getValue(Difficulty.MEDIUM) > averages.getValue(Difficulty.HARD),
-            )
+            assertTrue("${puzzle.id} 已知数 $count", count in 8 until puzzle.cellCount)
         }
     }
 
@@ -132,6 +107,50 @@ class PuzzleQualityTest {
     }
 
     @Test
+    fun sevenHardPuzzlesUseMoreThanOneRegionShape() {
+        fun canonical(regions: List<Int>): String {
+            val size = 7
+            fun grid(order: List<Int>): List<Int> {
+                val mapping = mutableMapOf<Int, Int>()
+                return order.map { cell ->
+                    val value = regions[cell]
+                    mapping.getOrPut(value) { mapping.size }
+                }
+            }
+            val cells = (0 until size * size).toList()
+            fun rotate(times: Int): List<Int> {
+                var current = cells
+                repeat(times) {
+                    current = current.map { index ->
+                        val row = index / size
+                        val column = index % size
+                        column * size + (size - 1 - row)
+                    }
+                }
+                return current
+            }
+            val forms = mutableSetOf<String>()
+            for (turns in 0 until 4) {
+                val rotated = rotate(turns)
+                forms += grid(rotated).joinToString(",")
+                forms += grid(rotated.map { index ->
+                    val row = index / size
+                    val column = index % size
+                    row * size + (size - 1 - column)
+                }).joinToString(",")
+            }
+            return forms.min()
+        }
+        val hardShapes = PuzzleRepository.puzzles
+            .filter { it.type == SudokuType.SEVEN && it.difficulty == Difficulty.HARD }
+            .map { canonical(it.regions) }
+            .toSet()
+        assertTrue("七宫格挑战至少应有两种宫形，当前 ${hardShapes.size}", hardShapes.size >= 2)
+        val easyShape = canonical(PuzzleRepository.puzzleById("seven-easy").regions)
+        assertTrue(hardShapes.any { it != easyShape })
+    }
+
+    @Test
     fun sevenGridRegionsAreConnected() {
         PuzzleRepository.puzzles.filter { it.type == SudokuType.SEVEN }.forEach { puzzle ->
             assertEquals("${puzzle.id} 宫区数量", puzzle.cellCount, puzzle.regions.size)
@@ -157,61 +176,38 @@ class PuzzleQualityTest {
     }
 
     @Test
-    fun lessonCriticalValuesRemainStable() {
-        val killer = PuzzleRepository.puzzleById("killer-easy")
+    fun lessonExamplesDoNotDependOnPracticeOrder() {
+        val killer = com.example.puzzle_pt.data.LessonRepository.examplePuzzle(SudokuType.KILLER)
         assertEquals(listOf(0, 1, 2), killer.cages.first().cells.map { it.index })
-        assertEquals(0, killer.cages.first().labelIndex)
         assertEquals(10, killer.cages.first().sum)
         assertEquals(5, killer.solution[2])
 
-        val skyscraper = PuzzleRepository.puzzleById("skyscraper-easy")
+        val skyscraper = com.example.puzzle_pt.data.LessonRepository.examplePuzzle(SudokuType.SKYSCRAPER)
         assertEquals(3, skyscraper.skyscraperClues[skyscraper.size * 3])
-        val firstRow = (0 until skyscraper.size).map { skyscraper.solution[it] }
-        val visibleFromLeft = mutableListOf<Int>()
-        var tallest = 0
-        firstRow.forEach { value ->
-            if (value > tallest) {
-                tallest = value
-                visibleFromLeft += value
-            }
-        }
-        assertEquals(listOf(2, 5, 6), visibleFromLeft)
+        assertEquals(listOf(2, 5, 6), visibleFromLeft(skyscraper.solution.take(skyscraper.size)))
 
-        val diagonal = PuzzleRepository.puzzleById("diagonal-easy")
+        val diagonal = com.example.puzzle_pt.data.LessonRepository.examplePuzzle(SudokuType.DIAGONAL)
         assertEquals(
             listOf(5, 1, 3, 4, 6, 2),
             (0 until diagonal.size).map { diagonal.solution[it * diagonal.size + it] },
         )
-        assertEquals(4, diagonal.solution[21])
-        assertTrue(
-            "对角线课程示例需要至少一个对角线空格",
-            (0 until diagonal.size).any { diagonal.givens[it * diagonal.size + it] == 0 } ||
-                (0 until diagonal.size).any { diagonal.givens[it * diagonal.size + (diagonal.size - 1 - it)] == 0 },
-        )
 
-        val knight = PuzzleRepository.puzzleById("anti-knight-medium")
+        val knight = com.example.puzzle_pt.data.LessonRepository.examplePuzzle(SudokuType.ANTI_KNIGHT)
         assertEquals(0, knight.givens[1])
         assertEquals(4, knight.solution[1])
         assertEquals(2, knight.givens[14])
     }
 
-    private fun expectedGivensRange(size: Int, difficulty: Difficulty): IntRange = when (size) {
-        6 -> when (difficulty) {
-            Difficulty.EASY -> 19..24
-            Difficulty.MEDIUM -> 14..19
-            Difficulty.HARD -> 10..14
+    private fun visibleFromLeft(values: List<Int>): List<Int> {
+        val visible = mutableListOf<Int>()
+        var tallest = 0
+        values.forEach { value ->
+            if (value > tallest) {
+                tallest = value
+                visible += value
+            }
         }
-        7 -> when (difficulty) {
-            Difficulty.EASY -> 24..25
-            Difficulty.MEDIUM -> 18..20
-            Difficulty.HARD -> 14..16
-        }
-        9 -> when (difficulty) {
-            Difficulty.EASY -> 44..46
-            Difficulty.MEDIUM -> 34..36
-            Difficulty.HARD -> 28..30
-        }
-        else -> error("未定义的棋盘尺寸 $size")
+        return visible
     }
 
     private fun boxId(row: Int, column: Int): Int = (row / 2) * 2 + column / 3

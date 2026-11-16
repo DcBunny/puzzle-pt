@@ -37,9 +37,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.puzzle_pt.data.ProgressStore
 import com.example.puzzle_pt.engine.SudokuRules
+import com.example.puzzle_pt.engine.TeachingGuide
 import com.example.puzzle_pt.model.SudokuHint
 import com.example.puzzle_pt.model.SudokuPuzzle
-import com.example.puzzle_pt.model.SudokuType
 import com.example.puzzle_pt.ui.components.AppTopBar
 import com.example.puzzle_pt.ui.components.SudokuBoard
 import com.example.puzzle_pt.ui.isTabletLandscape
@@ -126,18 +126,8 @@ fun PracticeScreen(
                     else -> candidates
                 }
             }
-            val newConflicts = SudokuRules.conflictingCells(newBoard, puzzle)
-            feedback = if (newConflicts[index]) {
-                when (puzzle.type) {
-                    SudokuType.STANDARD, SudokuType.SEVEN, SudokuType.NINE -> "这里有重复数字，检查所在行、列和宫"
-                    SudokuType.KILLER -> "检查笼内是否重复，以及数字之和是否正确"
-                    SudokuType.SKYSCRAPER -> "这一行或列的可见楼数与外侧线索不符"
-                    SudokuType.DIAGONAL -> "检查所在行、列、宫和两条对角线"
-                    SudokuType.ANTI_KNIGHT -> "相同数字不能出现在马步相连的位置"
-                }
-            } else {
-                "填写正确，继续观察空格"
-            }
+            feedback = SudokuRules.explainCell(newBoard, puzzle, index)
+                ?: "目前没有发现规则冲突，继续观察空格"
             finishIfComplete(newBoard)
         }
         persist()
@@ -181,26 +171,16 @@ fun PracticeScreen(
     }
 
     fun requestHint() {
-        val emptyCells = board.indices.filter { board[it] == 0 }
-        if (emptyCells.isEmpty()) {
-            feedback = "还有标红的冲突需要修改"
-            return
+        hint = TeachingGuide.hint(puzzle, board)
+        hint?.index?.let { selectedIndex = it }
+        feedback = when (hint?.kind) {
+            com.example.puzzle_pt.model.HintKind.PLACE -> "已指出一个可以确定的格子"
+            com.example.puzzle_pt.model.HintKind.ELIMINATE -> "这一步先排除候选，还不能直接填数"
+            com.example.puzzle_pt.model.HintKind.CONFLICT -> "先修改标红的格子"
+            com.example.puzzle_pt.model.HintKind.UNSOLVABLE -> "当前盘面无法完成"
+            com.example.puzzle_pt.model.HintKind.UNCERTAIN -> "暂时无法确认"
+            else -> "暂时没有新的提示"
         }
-        val index = emptyCells.firstOrNull {
-            SudokuRules.candidates(board.toIntArray(), it, puzzle).size == 1
-        } ?: emptyCells.first()
-        val row = index / puzzle.size + 1
-        val column = index % puzzle.size + 1
-        val reason = when (puzzle.type) {
-            SudokuType.STANDARD, SudokuType.SEVEN, SudokuType.NINE -> "排除这一行、这一列和这一宫已有的数字"
-            SudokuType.KILLER -> "结合所在笼还需凑出的和，并排除行、列、宫已有数字"
-            SudokuType.SKYSCRAPER -> "结合外侧楼数线索，再排除行、列、宫已有数字"
-            SudokuType.DIAGONAL -> "除了行、列、宫，也检查它所在的对角线"
-            SudokuType.ANTI_KNIGHT -> "除了行、列、宫，也排除马步关联格的数字"
-        }
-        hint = SudokuHint(index, puzzle.solution[index], "看看第 $row 行第 $column 列：$reason。这里可以填 ${puzzle.solution[index]}。")
-        selectedIndex = index
-        feedback = "已为你指出一个可填格"
     }
 
     LaunchedEffect(running, puzzle.id) {
@@ -273,6 +253,7 @@ fun PracticeScreen(
                     selectedIndex = selectedIndex,
                     conflictCells = conflicts,
                     hintIndex = hint?.index,
+                    highlightCells = hint?.relatedCells.orEmpty(),
                     onCellSelected = { selectedIndex = it },
                 )
             } else {
@@ -397,6 +378,7 @@ private fun PracticeLandscapeBody(
                         selectedIndex = selectedIndex,
                         conflictCells = conflicts,
                         hintIndex = hint?.index,
+                        highlightCells = hint?.relatedCells.orEmpty(),
                         onCellSelected = onCellSelected,
                         modifier = Modifier.size(boardSize),
                     )

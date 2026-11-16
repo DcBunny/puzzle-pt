@@ -45,7 +45,7 @@ fun DifficultyScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                item(span = { GridItemSpan(maxLineSpan) }) { DifficultyTitle() }
+                item(span = { GridItemSpan(maxLineSpan) }) { DifficultyTitle(type) }
                 items(Difficulty.entries) { difficulty ->
                     DifficultyCard(type, difficulty, onSelect)
                 }
@@ -56,7 +56,7 @@ fun DifficultyScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item { DifficultyTitle() }
+                item { DifficultyTitle(type) }
                 items(Difficulty.entries) { difficulty ->
                     DifficultyCard(type, difficulty, onSelect)
                 }
@@ -66,12 +66,16 @@ fun DifficultyScreen(
 }
 
 @Composable
-private fun DifficultyTitle() {
+private fun DifficultyTitle(type: SudokuType) {
     Text(
         text = "选择难度",
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(bottom = 4.dp),
+    )
+    Text(
+        text = type.ruleSummary,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
     )
 }
 

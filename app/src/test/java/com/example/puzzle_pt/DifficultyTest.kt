@@ -1,6 +1,8 @@
 package com.example.puzzle_pt
 
 import com.example.puzzle_pt.data.PuzzleRepository
+import com.example.puzzle_pt.engine.TeachingGuide
+import com.example.puzzle_pt.engine.TechniqueLevel
 import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.SudokuType
 import org.junit.Assert.assertEquals
@@ -9,60 +11,39 @@ import org.junit.Test
 
 class DifficultyTest {
     @Test
-    fun allPuzzlesAreSolvableWithoutSearch() {
+    fun foundPathsMatchTheDeclaredBands() {
         PuzzleRepository.puzzles.forEach { puzzle ->
-            val analysis = DifficultyAnalyzer.analyze(puzzle)
-            assertTrue("${puzzle.id} 需要试填或超出技巧集", analysis.solved)
+            val analysis = TeachingGuide.analysis(puzzle)
+            assertTrue(
+                "${puzzle.id} 在已教技巧内没有找到完整路径：${analysis.steps.size} 步 / ${analysis.topLevel}",
+                analysis.solved,
+            )
+            assertEquals(
+                "${puzzle.id} 找到的路径应落在${puzzle.difficulty.title}，最高技巧 ${analysis.topLevel}，进阶步数 " +
+                    analysis.steps.count { it.level != TechniqueLevel.SINGLES },
+                puzzle.difficulty,
+                TeachingGuide.ratedDifficulty(puzzle, analysis),
+            )
         }
     }
 
     @Test
-    fun easyPuzzlesUseSinglesOnly() {
-        PuzzleRepository.puzzles
-            .filter { it.difficulty == Difficulty.EASY }
-            .forEach { puzzle ->
-                val analysis = DifficultyAnalyzer.analyze(puzzle)
-                assertEquals(
-                    "${puzzle.id} 入门题不应依赖进阶技巧",
-                    TechniqueLevel.SINGLES,
-                    analysis.topLevel,
-                )
+    fun techniqueCostRisesAcrossBands() {
+        SudokuType.entries.forEach { type ->
+            val averages = Difficulty.entries.associateWith { difficulty ->
+                PuzzleRepository.puzzles
+                    .filter { it.type == type && it.difficulty == difficulty }
+                    .map { TeachingGuide.pathCost(it) }
+                    .average()
             }
-    }
-
-    @Test
-    fun advancedTiersUseMoreThanSingles() {
-        setOf(SudokuType.SEVEN, SudokuType.NINE, SudokuType.DIAGONAL).forEach { type ->
-            PuzzleRepository.puzzlesOf(type)
-                .filter { it.difficulty != Difficulty.EASY }
-                .forEach { puzzle ->
-                    val analysis = DifficultyAnalyzer.analyze(puzzle)
-                    assertTrue(
-                        "${puzzle.id} 中高难度应至少使用 L2 技巧",
-                        analysis.solved && analysis.topLevel != TechniqueLevel.SINGLES,
-                    )
-                }
+            assertTrue(
+                "${type.title} 入门平均推理成本应低于进阶：$averages",
+                averages.getValue(Difficulty.EASY) < averages.getValue(Difficulty.MEDIUM),
+            )
+            assertTrue(
+                "${type.title} 进阶平均推理成本应低于挑战：$averages",
+                averages.getValue(Difficulty.MEDIUM) < averages.getValue(Difficulty.HARD),
+            )
         }
-
-        PuzzleRepository.puzzlesOf(SudokuType.ANTI_KNIGHT)
-            .filter { it.difficulty == Difficulty.HARD }
-            .forEach { puzzle ->
-                val analysis = DifficultyAnalyzer.analyze(puzzle)
-                assertTrue(
-                    "${puzzle.id} 挑战题应至少使用 L2 技巧",
-                    analysis.solved && analysis.topLevel != TechniqueLevel.SINGLES,
-                )
-            }
-
-        // anti-knight-medium 是课程示例，保持不动；其余中等题应为 L2。
-        PuzzleRepository.puzzlesOf(SudokuType.ANTI_KNIGHT)
-            .filter { it.difficulty == Difficulty.MEDIUM && it.id != "anti-knight-medium" }
-            .forEach { puzzle ->
-                val analysis = DifficultyAnalyzer.analyze(puzzle)
-                assertTrue(
-                    "${puzzle.id} 中等题应至少使用 L2 技巧",
-                    analysis.solved && analysis.topLevel != TechniqueLevel.SINGLES,
-                )
-            }
     }
 }

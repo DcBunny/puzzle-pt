@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.puzzle_pt.data.LessonRepository
 import com.example.puzzle_pt.data.PuzzleRepository
+import com.example.puzzle_pt.model.Difficulty
 import com.example.puzzle_pt.model.SudokuType
 import org.junit.Before
 import org.junit.Rule
@@ -116,8 +117,8 @@ class ExampleInstrumentedTest {
             scrollHomeTo("practice_${type.name}")
             click("practice_${type.name}")
             click("difficulty_${type.name}_EASY")
-            click(easyPuzzleTag(type))
-            val puzzle = PuzzleRepository.puzzlesOf(type).first { it.difficulty.title == "入门" }
+            val puzzle = PuzzleRepository.puzzlesOf(type).first { it.difficulty == Difficulty.EASY }
+            click("start_${puzzle.id}")
             val target = puzzle.givens.indexOf(0)
             val answer = puzzle.solution[target]
             click("cell_$target")
@@ -144,6 +145,9 @@ class ExampleInstrumentedTest {
     }
 
     private fun completeKillerLesson() {
+        click("lesson_next")
+        click("visual_killer_duplicate_1")
+        click("lesson_next")
         composeRule.onNodeWithTag("cell_0").assertTextEquals("1", "10")
         composeRule.onNodeWithTag("cell_1").assertTextEquals("4")
         click("visual_killer_number_6")
@@ -155,6 +159,7 @@ class ExampleInstrumentedTest {
     private fun completeSkyscraperLesson() {
         click("visual_sky_height_answer_2")
         click("visual_sky_height_answer_3")
+        click("lesson_next")
         click("lesson_next")
         composeRule.onNodeWithTag("cell_0").assertTextEquals("2")
         composeRule.onNodeWithTag("cell_1").assertTextEquals("5")
@@ -169,6 +174,11 @@ class ExampleInstrumentedTest {
     }
 
     private fun completeDiagonalLesson() {
+        click("lesson_next")
+        listOf(0, 1, 2, 3, 4, 5).forEach { index ->
+            click("visual_diagonal_cell_${index}_$index")
+        }
+        click("lesson_next")
         composeRule.onNodeWithTag("cell_0").assertTextEquals("5")
         composeRule.onNodeWithTag("cell_7").assertTextEquals("1")
         composeRule.onNodeWithTag("cell_28").assertTextEquals("6")
@@ -179,6 +189,11 @@ class ExampleInstrumentedTest {
     }
 
     private fun completeKnightLesson() {
+        click("lesson_next")
+        listOf("0_3", "2_3", "3_0", "3_2").forEach { cell ->
+            click("visual_knight_cell_$cell")
+        }
+        click("lesson_next")
         composeRule.onNodeWithTag("cell_14").assertTextEquals("2")
         click("visual_knight_safe_2")
         composeRule.onNodeWithTag("cell_1").assertTextEquals("2")
