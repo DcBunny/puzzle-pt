@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,10 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -46,6 +52,7 @@ fun SudokuBoard(
     modifier: Modifier = Modifier,
     highlightCells: Set<Int> = emptySet(),
     hintIndex: Int? = null,
+    lessonTargetIndex: Int? = null,
     interactive: Boolean = true,
     onCellSelected: (Int) -> Unit = {},
 ) {
@@ -62,6 +69,7 @@ fun SudokuBoard(
                 conflictCells = conflictCells,
                 highlightCells = highlightCells,
                 hintIndex = hintIndex,
+                lessonTargetIndex = lessonTargetIndex,
                 interactive = interactive,
                 onCellSelected = onCellSelected,
                 modifier = Modifier.size(boardSize).align(Alignment.Center),
@@ -77,6 +85,7 @@ fun SudokuBoard(
             conflictCells = conflictCells,
             highlightCells = highlightCells,
             hintIndex = hintIndex,
+            lessonTargetIndex = lessonTargetIndex,
             interactive = interactive,
             onCellSelected = onCellSelected,
             modifier = boardModifier.fillMaxWidth().aspectRatio(1f).testTag("sudoku_board"),
@@ -93,6 +102,7 @@ private fun BoardGrid(
     conflictCells: BooleanArray,
     highlightCells: Set<Int>,
     hintIndex: Int?,
+    lessonTargetIndex: Int?,
     interactive: Boolean,
     onCellSelected: (Int) -> Unit,
     modifier: Modifier,
@@ -101,27 +111,45 @@ private fun BoardGrid(
     val size = puzzle.size
     val related = selectedIndex?.let { SudokuRules.relatedCells(it, puzzle) }.orEmpty()
     val selectedValue = selectedIndex?.let { board[it] } ?: 0
+    val darkBoard = colors.surface.luminance() < 0.5f
+    val targetFill = if (darkBoard) LessonTargetFillDark else LessonTargetFillLight
+    val targetStroke = if (darkBoard) LessonTargetStrokeDark else LessonTargetStrokeLight
     Box(modifier) {
         Column(Modifier.fillMaxSize()) {
             for (row in 0 until size) {
                 Row(Modifier.weight(1f).fillMaxWidth()) {
                     for (column in 0 until size) {
                         val index = row * size + column
+                        val isLessonTarget = lessonTargetIndex == index
                         val isDiagonal = puzzle.type == SudokuType.DIAGONAL && (row == column || row + column == size - 1)
                         val background = when {
-                            selectedIndex == index -> colors.primaryContainer
                             conflictCells[index] -> colors.errorContainer
+                            isLessonTarget -> targetFill
+                            selectedIndex == index -> colors.primaryContainer
                             hintIndex == index || index in highlightCells -> colors.tertiaryContainer
                             selectedValue != 0 && board[index] == selectedValue -> colors.secondaryContainer
                             index in related -> colors.secondaryContainer.copy(alpha = 0.65f)
                             isDiagonal -> colors.surfaceVariant
                             else -> colors.surface
                         }
+                        val targetSemantics = if (isLessonTarget) {
+                            Modifier.semantics {
+                                contentDescription = lessonTargetDescription(row, column)
+                                stateDescription = lessonTargetState(
+                                    conflict = conflictCells[index],
+                                    selected = selectedIndex == index,
+                                    referenced = index in highlightCells,
+                                )
+                            }
+                        } else {
+                            Modifier
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
                                 .background(background)
+                                .then(targetSemantics)
                                 .testTag("cell_$index")
                                 .clickable(enabled = interactive) { onCellSelected(index) },
                             contentAlignment = Alignment.Center,
@@ -134,6 +162,9 @@ private fun BoardGrid(
                                 null
                             }
                             val showCageSum = cage != null && cage.labelIndex == index
+                            if (isLessonTarget) {
+                                LessonTargetBorder(targetStroke, hasCageSum = showCageSum)
+                            }
                             when {
                                 board[index] != 0 -> Text(
                                     text = board[index].toString(),
@@ -144,12 +175,21 @@ private fun BoardGrid(
                                         puzzle.givens[index] != 0 -> colors.onSurface
                                         else -> colors.primary
                                     },
+                                    modifier = Modifier
+                                        .padding(
+                                            end = if (isLessonTarget) 10.dp else 0.dp,
+                                            bottom = if (isLessonTarget) 10.dp else 0.dp,
+                                        )
+                                        .testTag("cell_value_$index"),
                                 )
                                 notes[index].isNotEmpty() -> CandidateNotes(
                                     candidates = notes[index],
                                     hasCageSum = showCageSum,
                                     size = size,
                                 )
+                            }
+                            if (isLessonTarget) {
+                                LessonTargetCorner(targetStroke)
                             }
                             if (showCageSum) {
                                 Text(
@@ -160,6 +200,7 @@ private fun BoardGrid(
                                     modifier = Modifier
                                         .align(Alignment.TopStart)
                                         .padding(3.dp)
+                                        .testTag("cage_sum_$index")
                                         .background(
                                             color = colors.surface.copy(alpha = 0.92f),
                                             shape = RoundedCornerShape(4.dp),
@@ -336,5 +377,57 @@ private fun ClueText(value: Int, modifier: Modifier) {
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp,
         )
+    }
+}
+
+internal fun lessonTargetDescription(row: Int, column: Int): String =
+    "本步目标格，第 ${row + 1} 行、第 ${column + 1} 列"
+
+internal fun lessonTargetState(conflict: Boolean, selected: Boolean, referenced: Boolean): String = when {
+    conflict -> "冲突目标格"
+    selected -> "选中目标格"
+    referenced -> "参考中的目标格"
+    else -> "目标格"
+}
+
+private val LessonTargetFillLight = Color(0xFFFFE08A)
+private val LessonTargetStrokeLight = Color(0xFFC2410C)
+private val LessonTargetFillDark = Color(0xFF7A4E00)
+private val LessonTargetStrokeDark = Color(0xFFFFC14D)
+
+@Composable
+private fun BoxScope.LessonTargetBorder(stroke: Color, hasCageSum: Boolean) {
+    Canvas(Modifier.fillMaxSize().testTag("lesson_target_border")) {
+        val inset = 6.dp.toPx()
+        val strokeWidth = 3.5.dp.toPx()
+        val left = inset
+        val top = inset
+        val right = size.width - inset
+        val bottom = size.height - inset
+        val topStart = if (hasCageSum) minOf(maxOf(left, 34.dp.toPx()), right) else left
+        val leftStart = if (hasCageSum) minOf(maxOf(top, 20.dp.toPx()), bottom) else top
+        drawLine(stroke, Offset(topStart, top), Offset(right, top), strokeWidth, StrokeCap.Round)
+        drawLine(stroke, Offset(right, top), Offset(right, bottom), strokeWidth, StrokeCap.Round)
+        drawLine(stroke, Offset(right, bottom), Offset(left, bottom), strokeWidth, StrokeCap.Round)
+        drawLine(stroke, Offset(left, bottom), Offset(left, leftStart), strokeWidth, StrokeCap.Round)
+    }
+}
+
+@Composable
+private fun BoxScope.LessonTargetCorner(stroke: Color) {
+    Canvas(
+        Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 8.dp, bottom = 8.dp)
+            .size(10.dp)
+            .testTag("lesson_target_corner"),
+    ) {
+        val path = Path().apply {
+            moveTo(0f, size.height)
+            lineTo(size.width, size.height)
+            lineTo(size.width, 0f)
+            close()
+        }
+        drawPath(path, stroke)
     }
 }

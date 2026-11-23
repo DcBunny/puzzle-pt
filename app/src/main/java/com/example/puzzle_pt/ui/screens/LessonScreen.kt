@@ -67,7 +67,7 @@ fun LessonScreen(
     var completedSteps by remember(type) { mutableStateOf(setOf<Int>()) }
     var selectedIndex by remember(type) { mutableStateOf<Int?>(null) }
     var finalEntry by remember(type) { mutableStateOf<Int?>(null) }
-    var feedback by remember(type) { mutableStateOf("先点发光的小格，再选一张数字牌") }
+    var feedback by remember(type) { mutableStateOf("先点粗框标出的格子，再选一张数字牌") }
     var speechMessage by remember(type) { mutableStateOf("") }
     val step = steps[stepIndex]
     val isFinalStep = stepIndex == steps.lastIndex
@@ -91,16 +91,16 @@ fun LessonScreen(
 
     fun enterLessonNumber(value: Int) {
         when {
-            selectedIndex != targetIndex -> feedback = "先点那个发光的小空格。"
+            selectedIndex != targetIndex -> feedback = "先点粗框标出的格子。"
             value == guidedPuzzle.solution[targetIndex] -> {
                 finalEntry = value
-                feedback = LessonRepository.guidedSuccess(type)
+                feedback = LessonRepository.SUCCESS_FEEDBACK
             }
             else -> {
                 val trial = guidedPuzzle.givens.toMutableList()
                 trial[targetIndex] = value
                 feedback = SudokuRules.explainCell(trial, guidedPuzzle, targetIndex)
-                    ?: "再看看发光的格子，以及这一步新学的规则。"
+                    ?: "再看看粗框标出的格子，以及这一步新学的规则。"
             }
         }
     }
@@ -120,11 +120,12 @@ fun LessonScreen(
                         stepIndex = stepIndex,
                         stepCount = steps.size,
                         isFinalStep = isFinalStep,
+                        finalComplete = finalComplete,
                         speechMessage = speechMessage,
                         centerText = false,
                         onListen = {
-                            val text = "${step.title}。${step.explanation}${step.action}"
-                            speechMessage = if (speaker.speak(text)) "" else "这台设备暂时不能朗读，我们还可以一起看图。"
+                            val spoken = lessonSpeech(step, includeAction = !(isFinalStep && finalComplete))
+                            speechMessage = if (speaker.speak(spoken)) "" else "这台设备暂时不能朗读，我们还可以一起看图。"
                         },
                         onReplay = { replayKey++ },
                     )
@@ -177,11 +178,12 @@ fun LessonScreen(
                     stepIndex = stepIndex,
                     stepCount = steps.size,
                     isFinalStep = isFinalStep,
+                    finalComplete = finalComplete,
                     speechMessage = speechMessage,
                     centerText = true,
                     onListen = {
-                        val text = "${step.title}。${step.explanation}${step.action}"
-                        speechMessage = if (speaker.speak(text)) "" else "这台设备暂时不能朗读，我们还可以一起看图。"
+                        val spoken = lessonSpeech(step, includeAction = !(isFinalStep && finalComplete))
+                        speechMessage = if (speaker.speak(spoken)) "" else "这台设备暂时不能朗读，我们还可以一起看图。"
                     },
                     onReplay = { replayKey++ },
                 )
@@ -224,6 +226,7 @@ private fun LessonTextContent(
     stepIndex: Int,
     stepCount: Int,
     isFinalStep: Boolean,
+    finalComplete: Boolean,
     speechMessage: String,
     centerText: Boolean,
     onListen: () -> Unit,
@@ -254,7 +257,7 @@ private fun LessonTextContent(
             textAlign = textAlign,
             modifier = textModifier.padding(top = 8.dp),
         )
-        if (step.action.isNotEmpty()) {
+        if (step.action.isNotEmpty() && !(isFinalStep && finalComplete)) {
             Text(
                 text = step.action,
                 fontSize = 20.sp,
@@ -303,18 +306,28 @@ private fun LessonInteractionContent(
     onSolved: () -> Unit,
 ) {
     if (isFinalStep) {
-        val selectedHighlights = selectedIndex?.let { SudokuRules.relatedCells(it, guidedPuzzle) }.orEmpty()
         SudokuBoard(
             puzzle = guidedPuzzle,
             board = board,
             notes = List(CELL_COUNT) { emptySet() },
             selectedIndex = selectedIndex,
             conflictCells = SudokuRules.conflictingCells(board, guidedPuzzle),
-            highlightCells = LessonRepository.guidedFocus(guidedPuzzle.type) + selectedHighlights + targetIndex,
+            highlightCells = LessonRepository.guidedFocus(guidedPuzzle.type) - targetIndex,
+            lessonTargetIndex = targetIndex,
             onCellSelected = onCellSelected,
         )
+        if (!finalComplete) {
+            Text(
+                text = LessonRepository.guidedFillPrompt(guidedPuzzle.type),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 10.dp).testTag("lesson_target_prompt"),
+            )
+        }
         Text(
-            text = if (finalComplete) "你记住了这条规则，真棒！" else feedback,
+            text = if (finalComplete) LessonRepository.SUCCESS_FEEDBACK else feedback,
             fontSize = 19.sp,
             color = if (finalComplete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -398,3 +411,6 @@ private fun LessonDots(count: Int, current: Int) {
         }
     }
 }
+
+private fun lessonSpeech(step: LessonStep, includeAction: Boolean): String =
+    step.title + "。" + step.explanation + if (includeAction) step.action else ""

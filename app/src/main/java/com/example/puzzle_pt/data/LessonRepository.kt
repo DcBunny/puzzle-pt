@@ -116,7 +116,7 @@ object LessonRepository {
                 LessonStep(
                     "斜线上缺哪个",
                     "主对角线上已有 5、1、3、6、2，还缺一个数字。",
-                    "找出发光空格缺少的数字。",
+                    "找出粗框标出的格子缺少的数字。",
                     LessonVisualKind.DIAGONAL_DUPLICATE,
                     LessonInteraction.FIND_DIAGONAL_DUPLICATE,
                 ),
@@ -148,14 +148,14 @@ object LessonRepository {
         return steps + LessonStep(
             "你来试一试",
             when (type) {
-                SudokuType.KILLER -> "发光小屋还差多少，不能只看这一行。"
+                SudokuType.KILLER -> "标出的笼子还差多少，不能只看这一行。"
                 SudokuType.SKYSCRAPER -> "外侧线索是 1 时，要先想到最高的那栋楼。"
                 SudokuType.DIAGONAL -> "这一格有两个普通候选，对角线能排除一个。"
                 SudokuType.ANTI_KNIGHT -> "先看普通候选，再排除马步上已有的数字。"
                 SudokuType.STANDARD -> "看看这一行、这一列和这一宫，找出缺少的数字。"
                 SudokuType.SEVEN, SudokuType.NINE -> ""
             },
-            "给发光的小格填上正确的数字。",
+            "给粗框标出的格子填上正确的数字。",
             LessonVisualKind.NUMBER_FRIENDS,
         )
     }
@@ -227,6 +227,16 @@ object LessonRepository {
         SudokuType.ANTI_KNIGHT -> 8
         else -> guidedPuzzle(type).givens.indexOf(0)
     }
+
+    fun guidedFillPrompt(type: SudokuType): String {
+        val puzzle = guidedPuzzle(type)
+        val index = guidedTargetIndex(type)
+        val row = index / puzzle.size + 1
+        val column = index % puzzle.size + 1
+        return "请填写粗框格：第 $row 行、第 $column 列"
+    }
+
+    const val SUCCESS_FEEDBACK = "你记住了这条规则，真棒！"
 
     fun guidedFocus(type: SudokuType): Set<Int> {
         val puzzle = guidedPuzzle(type)

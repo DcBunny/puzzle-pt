@@ -77,4 +77,26 @@ class LessonContentTest {
             }
         }
     }
+
+    @Test
+    fun lessonCopyPointsAtTheMarkedCell() {
+        SudokuType.entries.filter { it.hasLesson }.forEach { type ->
+            val steps = LessonRepository.stepsFor(type)
+            val copy = steps.joinToString { it.title + it.explanation + it.action }
+            assertTrue(copy, "发光" !in copy)
+            val puzzle = LessonRepository.guidedPuzzle(type)
+            val index = LessonRepository.guidedTargetIndex(type)
+            val row = index / puzzle.size + 1
+            val column = index % puzzle.size + 1
+            assertEquals(
+                "请填写粗框格：第 $row 行、第 $column 列",
+                LessonRepository.guidedFillPrompt(type),
+            )
+            assertTrue(index in LessonRepository.guidedFocus(type))
+        }
+        val killer = LessonRepository.stepsFor(SudokuType.KILLER).last()
+        assertTrue(killer.explanation.contains("标出的笼子"))
+        assertTrue(killer.action.contains("粗框标出的格子"))
+        assertEquals("你记住了这条规则，真棒！", LessonRepository.SUCCESS_FEEDBACK)
+    }
 }

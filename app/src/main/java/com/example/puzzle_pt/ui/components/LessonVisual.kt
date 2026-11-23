@@ -262,7 +262,7 @@ private fun KillerMakeSum(puzzle: SudokuPuzzle, onSolved: () -> Unit) {
     var message by remember { mutableStateOf("第一行小屋：1 + 4 + ? = 10") }
     val solved = entry == puzzle.solution[target]
     val board = puzzle.solution.mapIndexed { index, value -> if (index == target) entry ?: 0 else value }
-    SixGridLessonBoard(puzzle, board, highlightCells = cageCells, hintIndex = target)
+    SixGridLessonBoard(puzzle, board, highlightCells = cageCells, lessonTargetIndex = target)
     LessonNumberChoices("visual_killer_number") { value ->
         entry = value
         when (value) {
@@ -504,7 +504,7 @@ private fun DiagonalDuplicate(puzzle: SudokuPuzzle, onSolved: () -> Unit) {
     var message by remember { mutableStateOf("主对角线：5、1、3、?、6、2") }
     val solved = entry == puzzle.solution[target]
     val board = puzzle.solution.mapIndexed { index, value -> if (index == target) entry ?: 0 else value }
-    SixGridLessonBoard(puzzle, board, highlightCells = diagonalCells, hintIndex = target)
+    SixGridLessonBoard(puzzle, board, highlightCells = diagonalCells, lessonTargetIndex = target)
     LessonNumberChoices("visual_diagonal_number") { value ->
         entry = value
         if (value == puzzle.solution[target]) {
@@ -600,10 +600,10 @@ private fun KnightChooseSafe(puzzle: SudokuPuzzle, onSolved: () -> Unit) {
     val target = 1
     val knightCells = SudokuRules.knightCells(target)
     var entry by remember { mutableStateOf<Int?>(null) }
-    var message by remember { mutableStateOf("按行、列、宫，发光格可以填 2 或 4。") }
+    var message by remember { mutableStateOf("按行、列、宫，粗框标出的格子可以填 2 或 4。") }
     val solved = entry == puzzle.solution[target]
     val board = puzzle.givens.mapIndexed { index, value -> if (index == target) entry ?: 0 else value }
-    SixGridLessonBoard(puzzle, board, highlightCells = knightCells, hintIndex = target)
+    SixGridLessonBoard(puzzle, board, highlightCells = knightCells, lessonTargetIndex = target)
     LessonNumberChoices("visual_knight_safe") { value ->
         entry = value
         when (value) {
@@ -623,7 +623,7 @@ private fun SixGridLessonBoard(
     puzzle: SudokuPuzzle,
     board: List<Int>,
     highlightCells: Set<Int>,
-    hintIndex: Int? = null,
+    lessonTargetIndex: Int? = null,
 ) {
     SudokuBoard(
         puzzle = puzzle,
@@ -631,8 +631,8 @@ private fun SixGridLessonBoard(
         notes = List(CELL_COUNT) { emptySet() },
         selectedIndex = null,
         conflictCells = SudokuRules.conflictingCells(board, puzzle),
-        highlightCells = highlightCells,
-        hintIndex = hintIndex,
+        highlightCells = if (lessonTargetIndex == null) highlightCells else highlightCells - lessonTargetIndex,
+        lessonTargetIndex = lessonTargetIndex,
         interactive = false,
     )
 }
